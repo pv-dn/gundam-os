@@ -13,6 +13,7 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.UUID
 
 class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
@@ -22,6 +23,9 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         private set
 
     var favorites by mutableStateOf(loadFavorites())
+        private set
+
+    var folders by mutableStateOf(loadFolders())
         private set
 
     var loading by mutableStateOf(true)
@@ -39,11 +43,21 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
             }
             apps = loaded
             val installed = loaded.mapTo(HashSet()) { it.packageName }
-            val pruned = favorites.filter { it in installed }
-            if (pruned.size != favorites.size) {
-                favorites = pruned
+
+            val prunedFav = favorites.filter { it in installed }
+            if (prunedFav.size != favorites.size) {
+                favorites = prunedFav
                 saveFavorites()
             }
+
+            val prunedFolders = folders.map { folder ->
+                folder.copy(packageNames = folder.packageNames.filter { it in installed })
+            }
+            if (prunedFolders != folders) {
+                folders = prunedFolders
+                saveFolders()
+            }
+
             loading = false
         }
     }
@@ -54,11 +68,88 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
             return favorites.mapNotNull { byPkg[it] }
         }
 
+    /** Packages currently stored inside any folder (hidden from A–Z). */
+    val shelvedPackages: Set<String>
+        get() = folders.flatMapTo(HashSet()) { it.packageNames }
+
+    fun appsInFolder(folderId: String): List<AppInfo> {
+        val folder = folders.firstOrNull { it.id == folderId } ?: return emptyList()
+        val byPkg = apps.associateBy { it.packageName }
+        return folder.packageNames.mapNotNull { byPkg[it] }
+    }
+
+    fun folderOf(pkg: String): AppFolder? =
+        folders.firstOrNull { pkg in it.packageNames }
+
     fun isFavorite(pkg: String): Boolean = pkg in favorites
 
     fun toggleFavorite(pkg: String) {
         favorites = if (pkg in favorites) favorites - pkg else favorites + pkg
         saveFavorites()
+    }
+
+    fun createFolder(name: String, initialPkg: String? = null): AppFolder {
+        val folder = AppFolder(
+            id = UUID.randomUUID().toString(),
+            name = name.trim().ifBlank { "FOLDER" },
+            packageNames = listOfNotNull(initialPkg)
+        )
+        // If the app was already in another folder, move it out first.
+        val cleaned = if (initialPkg != null) {
+            folders.map { f ->
+                f.copy(packageNames = f.packageNames.filter { it != initialPkg })
+            }.filter { it.packageNames.isNotEmpty() }
+        } else {
+            folders
+        }
+        folders = cleaned + folder
+        // Putting in a folder removes from home favorites (it's "stored away").
+        if (initialPkg != null && initialPkg in favorites) {
+            favorites = favorites - initialPkg
+            saveFavorites()
+        }
+        saveFolders()
+        return folder
+    }
+
+    fun renameFolder(folderId: String, name: String) {
+        val trimmed = name.trim().ifBlank { return }
+        folders = folders.map {
+            if (it.id == folderId) it.copy(name = trimmed) else it
+        }
+        saveFolders()
+    }
+
+    fun deleteFolder(folderId: String) {
+        folders = folders.filter { it.id != folderId }
+        saveFolders()
+    }
+
+    fun addToFolder(folderId: String, pkg: String) {
+        // Remove from any other folder first (one folder per app).
+        folders = folders.map { f ->
+            when {
+                f.id == folderId && pkg !in f.packageNames ->
+                    f.copy(packageNames = f.packageNames + pkg)
+                f.id != folderId ->
+                    f.copy(packageNames = f.packageNames.filter { it != pkg })
+                else -> f
+            }
+        }.filter { it.packageNames.isNotEmpty() || it.id == folderId }
+
+        if (pkg in favorites) {
+            favorites = favorites - pkg
+            saveFavorites()
+        }
+        saveFolders()
+    }
+
+    fun removeFromFolder(folderId: String, pkg: String) {
+        folders = folders.map { f ->
+            if (f.id == folderId) f.copy(packageNames = f.packageNames.filter { it != pkg })
+            else f
+        }
+        saveFolders()
     }
 
     fun launchApp(pkg: String) {
@@ -94,8 +185,37 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         prefs.edit().putString(KEY_FAV, favorites.joinToString("\n")).apply()
     }
 
+    /**
+     * One folder per line: id|name|pkg1,pkg2
+     * Pipes in names are replaced with spaces on save.
+     */
+    private fun loadFolders(): List<AppFolder> {
+        val raw = prefs.getString(KEY_FOLDERS, "").orEmpty()
+        if (raw.isBlank()) return emptyList()
+        return raw.lineSequence().mapNotNull { line ->
+            val parts = line.split("|", limit = 3)
+            if (parts.size < 2) return@mapNotNull null
+            val id = parts[0].ifBlank { return@mapNotNull null }
+            val name = parts[1].ifBlank { "FOLDER" }
+            val pkgs = if (parts.size >= 3 && parts[2].isNotBlank()) {
+                parts[2].split(",").map { it.trim() }.filter { it.isNotBlank() }
+            } else emptyList()
+            AppFolder(id = id, name = name, packageNames = pkgs)
+        }.toList()
+    }
+
+    private fun saveFolders() {
+        val encoded = folders.joinToString("\n") { f ->
+            val safeName = f.name.replace('|', ' ').replace('\n', ' ')
+            val pkgs = f.packageNames.joinToString(",")
+            "${f.id}|$safeName|$pkgs"
+        }
+        prefs.edit().putString(KEY_FOLDERS, encoded).apply()
+    }
+
     companion object {
         private const val PREFS = "gundam_launcher"
         private const val KEY_FAV = "favorites"
+        private const val KEY_FOLDERS = "folders"
     }
 }

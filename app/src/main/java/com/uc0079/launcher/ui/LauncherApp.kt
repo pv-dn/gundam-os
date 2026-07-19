@@ -34,9 +34,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -59,6 +61,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.uc0079.launcher.AppFolder
 import com.uc0079.launcher.AppInfo
 import com.uc0079.launcher.LauncherViewModel
 import com.uc0079.launcher.WidgetHostController
@@ -68,19 +71,57 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-private enum class Screen { HOME, ALL }
+private enum class Screen { HOME, ALL, FOLDER }
 
 @Composable
 fun LauncherApp(vm: LauncherViewModel, widgets: WidgetHostController) {
     GundamTheme {
         var screen by remember { mutableStateOf(Screen.HOME) }
+        var openFolderId by remember { mutableStateOf<String?>(null) }
 
         ScrimBackground(Modifier.fillMaxSize()) {
             when (screen) {
-                Screen.HOME -> HomeScreen(vm, widgets) { screen = Screen.ALL }
+                Screen.HOME -> HomeScreen(
+                    vm = vm,
+                    widgets = widgets,
+                    onOpenAll = { screen = Screen.ALL },
+                    onOpenFolder = { id ->
+                        openFolderId = id
+                        screen = Screen.FOLDER
+                    }
+                )
                 Screen.ALL -> {
                     BackHandler { screen = Screen.HOME }
-                    AllAppsScreen(vm) { screen = Screen.HOME }
+                    AllAppsScreen(
+                        vm = vm,
+                        onClose = { screen = Screen.HOME },
+                        onOpenFolder = { id ->
+                            openFolderId = id
+                            screen = Screen.FOLDER
+                        }
+                    )
+                }
+                Screen.FOLDER -> {
+                    val id = openFolderId
+                    if (id == null || vm.folders.none { it.id == id }) {
+                        LaunchedEffect(id) {
+                            openFolderId = null
+                            screen = Screen.HOME
+                        }
+                    } else {
+                        BackHandler {
+                            openFolderId = null
+                            screen = Screen.HOME
+                        }
+                        FolderScreen(
+                            vm = vm,
+                            folderId = id,
+                            onClose = {
+                                openFolderId = null
+                                screen = Screen.HOME
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -92,9 +133,17 @@ fun LauncherApp(vm: LauncherViewModel, widgets: WidgetHostController) {
 /* ------------------------------------------------------------------ */
 
 @Composable
-private fun HomeScreen(vm: LauncherViewModel, widgets: WidgetHostController, onOpenAll: () -> Unit) {
+private fun HomeScreen(
+    vm: LauncherViewModel,
+    widgets: WidgetHostController,
+    onOpenAll: () -> Unit,
+    onOpenFolder: (String) -> Unit
+) {
     val favorites = vm.favoriteApps
+    val folders = vm.folders
     val scroll = rememberScrollState()
+    var createFolderOpen by remember { mutableStateOf(false) }
+    var renameFolder by remember { mutableStateOf<AppFolder?>(null) }
 
     Column(
         modifier = Modifier
@@ -120,6 +169,20 @@ private fun HomeScreen(vm: LauncherViewModel, widgets: WidgetHostController, onO
             AddWidgetButton { widgets.pickWidget() }
 
             Spacer(Modifier.height(22.dp))
+            SectionLabel("FOLDERS / フォルダ")
+            Spacer(Modifier.height(6.dp))
+            folders.forEach { folder ->
+                FolderRow(
+                    folder = folder,
+                    previewIcons = vm.appsInFolder(folder.id).take(4).map { it.icon },
+                    onOpen = { onOpenFolder(folder.id) },
+                    onRename = { renameFolder = folder },
+                    onDelete = { vm.deleteFolder(folder.id) }
+                )
+            }
+            AddFolderButton { createFolderOpen = true }
+
+            Spacer(Modifier.height(22.dp))
             SectionLabel("FAVORITE UNITS / お気に入り")
             Spacer(Modifier.height(6.dp))
             if (favorites.isEmpty()) {
@@ -135,10 +198,19 @@ private fun HomeScreen(vm: LauncherViewModel, widgets: WidgetHostController, onO
                     AppRow(
                         app = app,
                         isFavorite = true,
+                        folders = folders,
+                        currentFolder = vm.folderOf(app.packageName),
                         onLaunch = { vm.launchApp(app.packageName) },
                         onToggleFavorite = { vm.toggleFavorite(app.packageName) },
                         onInfo = { vm.openAppInfo(app.packageName) },
                         onUninstall = { vm.uninstall(app.packageName) },
+                        onAddToFolder = { folderId -> vm.addToFolder(folderId, app.packageName) },
+                        onCreateFolderWithApp = { name ->
+                            vm.createFolder(name, app.packageName)
+                        },
+                        onRemoveFromFolder = { folderId ->
+                            vm.removeFromFolder(folderId, app.packageName)
+                        },
                         labelSize = 22.sp,
                         iconSize = 34.dp
                     )
@@ -149,6 +221,29 @@ private fun HomeScreen(vm: LauncherViewModel, widgets: WidgetHostController, onO
 
         AllUnitsButton(onOpenAll)
         Spacer(Modifier.height(10.dp))
+    }
+
+    if (createFolderOpen) {
+        FolderNameDialog(
+            title = "新しいフォルダ",
+            initial = "フォルダ",
+            onDismiss = { createFolderOpen = false },
+            onConfirm = { name ->
+                createFolderOpen = false
+                vm.createFolder(name)
+            }
+        )
+    }
+    renameFolder?.let { folder ->
+        FolderNameDialog(
+            title = "フォルダ名を変更",
+            initial = folder.name,
+            onDismiss = { renameFolder = null },
+            onConfirm = { name ->
+                vm.renameFolder(folder.id, name)
+                renameFolder = null
+            }
+        )
     }
 }
 
@@ -363,44 +458,64 @@ private fun AllUnitsButton(onOpenAll: () -> Unit) {
 /* ALL APPS                                                            */
 /* ------------------------------------------------------------------ */
 
-private data class ListRow(val header: Char?, val app: AppInfo?)
+private data class ListRow(
+    val header: Char?,
+    val app: AppInfo?,
+    val folder: AppFolder? = null
+)
 
 /** Header marker for the favorites block pinned above A–Z. */
 private const val FAV_HEADER = '\u2605' // ★
+/** Header marker for folders block. */
+private const val FOLDER_HEADER = '\u25A3' // ▣
 
 @Composable
-private fun AllAppsScreen(vm: LauncherViewModel, onClose: () -> Unit) {
+private fun AllAppsScreen(
+    vm: LauncherViewModel,
+    onClose: () -> Unit,
+    onOpenFolder: (String) -> Unit
+) {
     var query by remember { mutableStateOf("") }
     var activeLetter by remember { mutableStateOf<Char?>(null) }
+    var renameFolder by remember { mutableStateOf<AppFolder?>(null) }
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
 
     val favorites = vm.favoriteApps
+    val folders = vm.folders
+    val shelved = vm.shelvedPackages
 
     val filtered = remember(vm.apps, query) {
         if (query.isBlank()) vm.apps
         else vm.apps.filter { it.label.contains(query.trim(), ignoreCase = true) }
     }
 
-    val rows = remember(filtered, query, favorites) {
+    val rows = remember(filtered, query, favorites, folders, shelved) {
         if (query.isNotBlank()) {
-            filtered.map { ListRow(null, it) }
+            filtered.map { ListRow(header = null, app = it, folder = null) }
         } else {
-            val favInList = favorites.filter { fav -> filtered.any { it.packageName == fav.packageName } }
+            val favInList = favorites.filter { fav ->
+                filtered.any { it.packageName == fav.packageName }
+            }
+            // Apps stored in folders are hidden from A–Z (しまえる).
+            val visible = filtered.filter { it.packageName !in shelved }
             val grouped = LinkedHashMap<Char, MutableList<AppInfo>>()
-            filtered.forEach { app ->
+            visible.forEach { app ->
                 val c = firstLetter(app.label)
                 grouped.getOrPut(c) { mutableListOf() }.add(app)
             }
             buildList {
-                // ★ Favorites pinned at the top of A–Z
                 if (favInList.isNotEmpty()) {
-                    add(ListRow(FAV_HEADER, null))
-                    favInList.forEach { add(ListRow(null, it)) }
+                    add(ListRow(FAV_HEADER, null, null))
+                    favInList.forEach { add(ListRow(null, it, null)) }
+                }
+                if (folders.isNotEmpty()) {
+                    add(ListRow(FOLDER_HEADER, null, null))
+                    folders.forEach { add(ListRow(null, null, it)) }
                 }
                 grouped.forEach { (letter, list) ->
-                    add(ListRow(letter, null))
-                    list.forEach { add(ListRow(null, it)) }
+                    add(ListRow(letter, null, null))
+                    list.forEach { add(ListRow(null, it, null)) }
                 }
             }
         }
@@ -434,38 +549,69 @@ private fun AllAppsScreen(vm: LauncherViewModel, onClose: () -> Unit) {
                 ) {
                     items(rows.size) { i ->
                         val row = rows[i]
-                        if (row.header != null) {
-                            if (row.header == FAV_HEADER) {
-                                Text(
-                                    text = "\u2605  FAVORITES / \u304A\u6C17\u306B\u5165\u308A",
-                                    color = G.Yellow,
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = FontFamily.Monospace,
-                                    modifier = Modifier.padding(start = 6.dp, top = 10.dp, bottom = 4.dp)
-                                )
-                            } else {
-                                Text(
-                                    text = row.header.toString(),
-                                    color = G.Cyan,
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = FontFamily.Monospace,
-                                    modifier = Modifier.padding(start = 6.dp, top = 14.dp, bottom = 4.dp)
+                        when {
+                            row.header != null -> {
+                                when (row.header) {
+                                    FAV_HEADER -> Text(
+                                        text = "\u2605  FAVORITES / \u304A\u6C17\u306B\u5165\u308A",
+                                        color = G.Yellow,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = FontFamily.Monospace,
+                                        modifier = Modifier.padding(start = 6.dp, top = 10.dp, bottom = 4.dp)
+                                    )
+                                    FOLDER_HEADER -> Text(
+                                        text = "\u25A3  FOLDERS / \u30D5\u30A9\u30EB\u30C0",
+                                        color = G.Cyan,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = FontFamily.Monospace,
+                                        modifier = Modifier.padding(start = 6.dp, top = 14.dp, bottom = 4.dp)
+                                    )
+                                    else -> Text(
+                                        text = row.header.toString(),
+                                        color = G.Cyan,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = FontFamily.Monospace,
+                                        modifier = Modifier.padding(start = 6.dp, top = 14.dp, bottom = 4.dp)
+                                    )
+                                }
+                            }
+                            row.folder != null -> {
+                                val folder = row.folder
+                                FolderRow(
+                                    folder = folder,
+                                    previewIcons = vm.appsInFolder(folder.id).take(4).map { it.icon },
+                                    onOpen = { onOpenFolder(folder.id) },
+                                    onRename = { renameFolder = folder },
+                                    onDelete = { vm.deleteFolder(folder.id) }
                                 )
                             }
-                        } else if (row.app != null) {
-                            val app = row.app
-                            AppRow(
-                                app = app,
-                                isFavorite = vm.isFavorite(app.packageName),
-                                onLaunch = { vm.launchApp(app.packageName) },
-                                onToggleFavorite = { vm.toggleFavorite(app.packageName) },
-                                onInfo = { vm.openAppInfo(app.packageName) },
-                                onUninstall = { vm.uninstall(app.packageName) },
-                                labelSize = 18.sp,
-                                iconSize = 30.dp
-                            )
+                            row.app != null -> {
+                                val app = row.app
+                                AppRow(
+                                    app = app,
+                                    isFavorite = vm.isFavorite(app.packageName),
+                                    folders = folders,
+                                    currentFolder = vm.folderOf(app.packageName),
+                                    onLaunch = { vm.launchApp(app.packageName) },
+                                    onToggleFavorite = { vm.toggleFavorite(app.packageName) },
+                                    onInfo = { vm.openAppInfo(app.packageName) },
+                                    onUninstall = { vm.uninstall(app.packageName) },
+                                    onAddToFolder = { folderId ->
+                                        vm.addToFolder(folderId, app.packageName)
+                                    },
+                                    onCreateFolderWithApp = { name ->
+                                        vm.createFolder(name, app.packageName)
+                                    },
+                                    onRemoveFromFolder = { folderId ->
+                                        vm.removeFromFolder(folderId, app.packageName)
+                                    },
+                                    labelSize = 18.sp,
+                                    iconSize = 30.dp
+                                )
+                            }
                         }
                     }
                 }
@@ -499,13 +645,25 @@ private fun AllAppsScreen(vm: LauncherViewModel, onClose: () -> Unit) {
                     Text(
                         text = c.toString(),
                         color = if (c == FAV_HEADER) G.Yellow else G.White,
-                        fontSize = if (c == FAV_HEADER) 36.sp else 42.sp,
+                        fontSize = if (c == FAV_HEADER || c == FOLDER_HEADER) 36.sp else 42.sp,
                         fontWeight = FontWeight.Bold,
                         fontFamily = FontFamily.Monospace
                     )
                 }
             }
         }
+    }
+
+    renameFolder?.let { folder ->
+        FolderNameDialog(
+            title = "フォルダ名を変更",
+            initial = folder.name,
+            onDismiss = { renameFolder = null },
+            onConfirm = { name ->
+                vm.renameFolder(folder.id, name)
+                renameFolder = null
+            }
+        )
     }
 }
 
@@ -604,15 +762,15 @@ private fun AlphabetScroller(
     ) {
         letters.forEach { c ->
             val on = c == activeLetter
-            val isFav = c == FAV_HEADER
+            val special = c == FAV_HEADER || c == FOLDER_HEADER
             Text(
                 text = c.toString(),
                 color = when {
-                    on || isFav -> G.Yellow
+                    on || c == FAV_HEADER -> G.Yellow
                     else -> G.Cyan
                 },
                 fontSize = if (on) 12.sp else 10.sp,
-                fontWeight = if (on || isFav) FontWeight.Bold else FontWeight.Normal,
+                fontWeight = if (on || special) FontWeight.Bold else FontWeight.Normal,
                 fontFamily = FontFamily.Monospace
             )
         }
@@ -620,7 +778,7 @@ private fun AlphabetScroller(
 }
 
 /* ------------------------------------------------------------------ */
-/* APP ROW                                                             */
+/* APP ROW + FOLDERS                                                   */
 /* ------------------------------------------------------------------ */
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -628,14 +786,21 @@ private fun AlphabetScroller(
 private fun AppRow(
     app: AppInfo,
     isFavorite: Boolean,
+    folders: List<AppFolder>,
+    currentFolder: AppFolder?,
     onLaunch: () -> Unit,
     onToggleFavorite: () -> Unit,
     onInfo: () -> Unit,
     onUninstall: () -> Unit,
+    onAddToFolder: (String) -> Unit,
+    onCreateFolderWithApp: (String) -> Unit,
+    onRemoveFromFolder: (String) -> Unit,
     labelSize: androidx.compose.ui.unit.TextUnit,
     iconSize: androidx.compose.ui.unit.Dp,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
+    var pickFolderOpen by remember { mutableStateOf(false) }
+    var createNameOpen by remember { mutableStateOf(false) }
 
     Box {
         Row(
@@ -654,15 +819,26 @@ private fun AppRow(
                 modifier = Modifier.size(iconSize)
             )
             Spacer(Modifier.width(14.dp))
-            Text(
-                text = app.label,
-                color = G.White,
-                fontSize = labelSize,
-                fontWeight = FontWeight.Medium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
-            )
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = app.label,
+                    color = G.White,
+                    fontSize = labelSize,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (currentFolder != null) {
+                    Text(
+                        text = "\u25A3 ${currentFolder.name}",
+                        color = G.Dim,
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.Monospace,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
             if (isFavorite) {
                 Text(text = "\u2605", color = G.Yellow, fontSize = 12.sp)
             }
@@ -684,6 +860,27 @@ private fun AppRow(
                 onClick = { menuOpen = false; onToggleFavorite() }
             )
             DropdownMenuItem(
+                text = {
+                    Text("フォルダにしまう…", color = G.White, fontFamily = FontFamily.Monospace)
+                },
+                onClick = { menuOpen = false; pickFolderOpen = true }
+            )
+            if (currentFolder != null) {
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            "フォルダから出す (${currentFolder.name})",
+                            color = G.Cyan,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    },
+                    onClick = {
+                        menuOpen = false
+                        onRemoveFromFolder(currentFolder.id)
+                    }
+                )
+            }
+            DropdownMenuItem(
                 text = { Text("アプリ情報", color = G.White, fontFamily = FontFamily.Monospace) },
                 onClick = { menuOpen = false; onInfo() }
             )
@@ -693,6 +890,368 @@ private fun AppRow(
             )
         }
     }
+
+    if (pickFolderOpen) {
+        FolderPickDialog(
+            folders = folders,
+            onDismiss = { pickFolderOpen = false },
+            onPick = { id ->
+                pickFolderOpen = false
+                onAddToFolder(id)
+            },
+            onCreateNew = {
+                pickFolderOpen = false
+                createNameOpen = true
+            }
+        )
+    }
+    if (createNameOpen) {
+        FolderNameDialog(
+            title = "新しいフォルダにしまう",
+            initial = "フォルダ",
+            onDismiss = { createNameOpen = false },
+            onConfirm = { name ->
+                createNameOpen = false
+                onCreateFolderWithApp(name)
+            }
+        )
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun FolderRow(
+    folder: AppFolder,
+    previewIcons: List<androidx.compose.ui.graphics.ImageBitmap>,
+    onOpen: () -> Unit,
+    onRename: () -> Unit,
+    onDelete: () -> Unit
+) {
+    var menuOpen by remember { mutableStateOf(false) }
+
+    Box {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .combinedClickable(
+                    onClick = onOpen,
+                    onLongClick = { menuOpen = true }
+                )
+                .padding(vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                Modifier
+                    .size(34.dp)
+                    .hudFrame(fill = G.PanelStrong, bracket = G.Cyan)
+                    .padding(3.dp)
+            ) {
+                when {
+                    previewIcons.isEmpty() -> Text(
+                        "\u25A3",
+                        color = G.Cyan,
+                        fontSize = 14.sp,
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                    previewIcons.size == 1 -> Image(
+                        bitmap = previewIcons[0],
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                    else -> {
+                        // 2x2 mini preview
+                        Column(Modifier.fillMaxSize()) {
+                            Row(Modifier.weight(1f)) {
+                                previewIcons.getOrNull(0)?.let {
+                                    Image(it, null, Modifier.weight(1f).fillMaxHeight().padding(0.5.dp))
+                                } ?: Spacer(Modifier.weight(1f))
+                                previewIcons.getOrNull(1)?.let {
+                                    Image(it, null, Modifier.weight(1f).fillMaxHeight().padding(0.5.dp))
+                                } ?: Spacer(Modifier.weight(1f))
+                            }
+                            Row(Modifier.weight(1f)) {
+                                previewIcons.getOrNull(2)?.let {
+                                    Image(it, null, Modifier.weight(1f).fillMaxHeight().padding(0.5.dp))
+                                } ?: Spacer(Modifier.weight(1f))
+                                previewIcons.getOrNull(3)?.let {
+                                    Image(it, null, Modifier.weight(1f).fillMaxHeight().padding(0.5.dp))
+                                } ?: Spacer(Modifier.weight(1f))
+                            }
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = folder.name,
+                    color = G.White,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = "${folder.packageNames.size} apps",
+                    color = G.Dim,
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
+            Text("\u25B8", color = G.Cyan, fontSize = 16.sp)
+        }
+
+        DropdownMenu(
+            expanded = menuOpen,
+            onDismissRequest = { menuOpen = false },
+            modifier = Modifier.background(G.PanelStrong)
+        ) {
+            DropdownMenuItem(
+                text = { Text("名前を変更", color = G.White, fontFamily = FontFamily.Monospace) },
+                onClick = { menuOpen = false; onRename() }
+            )
+            DropdownMenuItem(
+                text = { Text("フォルダを削除", color = G.Red, fontFamily = FontFamily.Monospace) },
+                onClick = { menuOpen = false; onDelete() }
+            )
+        }
+    }
+}
+
+@Composable
+private fun AddFolderButton(onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 4.dp)
+            .hudFrame(fill = G.Panel, bracket = G.Cyan)
+            .clickable(onClick = onClick)
+            .padding(vertical = 11.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "\uFF0B  NEW FOLDER  /  \u30D5\u30A9\u30EB\u30C0\u4F5C\u6210",
+            color = G.White,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+            fontFamily = FontFamily.Monospace,
+            letterSpacing = 1.sp
+        )
+    }
+}
+
+@Composable
+private fun FolderScreen(
+    vm: LauncherViewModel,
+    folderId: String,
+    onClose: () -> Unit
+) {
+    val folder = vm.folders.firstOrNull { it.id == folderId } ?: return
+    val apps = vm.appsInFolder(folderId)
+    var renameOpen by remember { mutableStateOf(false) }
+
+    Column(
+        Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .padding(horizontal = 14.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 10.dp)
+                .hudFrame()
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "\u25C0",
+                color = G.Cyan,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier
+                    .clickable(onClick = onClose)
+                    .padding(end = 12.dp)
+            )
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = "\u25A3  ${folder.name}",
+                    color = G.White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = "${apps.size} STORED UNITS",
+                    color = G.Dim,
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
+            Text(
+                text = "\u270E",
+                color = G.Yellow,
+                fontSize = 16.sp,
+                modifier = Modifier
+                    .clickable { renameOpen = true }
+                    .padding(horizontal = 8.dp)
+            )
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        if (apps.isEmpty()) {
+            Text(
+                text = "空です — 全アプリでアプリを長押しし、\n「フォルダにしまう」で入れてください。",
+                color = G.Dim,
+                fontSize = 13.sp,
+                fontFamily = FontFamily.Monospace,
+                modifier = Modifier.padding(12.dp)
+            )
+        } else {
+            LazyColumn(Modifier.weight(1f)) {
+                items(apps.size) { i ->
+                    val app = apps[i]
+                    AppRow(
+                        app = app,
+                        isFavorite = vm.isFavorite(app.packageName),
+                        folders = vm.folders,
+                        currentFolder = folder,
+                        onLaunch = { vm.launchApp(app.packageName) },
+                        onToggleFavorite = { vm.toggleFavorite(app.packageName) },
+                        onInfo = { vm.openAppInfo(app.packageName) },
+                        onUninstall = { vm.uninstall(app.packageName) },
+                        onAddToFolder = { id -> vm.addToFolder(id, app.packageName) },
+                        onCreateFolderWithApp = { name -> vm.createFolder(name, app.packageName) },
+                        onRemoveFromFolder = { id -> vm.removeFromFolder(id, app.packageName) },
+                        labelSize = 18.sp,
+                        iconSize = 30.dp
+                    )
+                }
+            }
+        }
+    }
+
+    if (renameOpen) {
+        FolderNameDialog(
+            title = "フォルダ名を変更",
+            initial = folder.name,
+            onDismiss = { renameOpen = false },
+            onConfirm = { name ->
+                vm.renameFolder(folder.id, name)
+                renameOpen = false
+            }
+        )
+    }
+}
+
+@Composable
+private fun FolderNameDialog(
+    title: String,
+    initial: String,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
+    var text by remember { mutableStateOf(initial) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = G.PanelStrong,
+        title = {
+            Text(title, color = G.White, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+        },
+        text = {
+            BasicTextField(
+                value = text,
+                onValueChange = { text = it },
+                singleLine = true,
+                textStyle = androidx.compose.ui.text.TextStyle(
+                    color = G.White,
+                    fontSize = 16.sp,
+                    fontFamily = FontFamily.Monospace
+                ),
+                cursorBrush = SolidColor(G.Cyan),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .hudFrame()
+                    .padding(12.dp)
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(text) }) {
+                Text("OK", color = G.Cyan, fontFamily = FontFamily.Monospace)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("キャンセル", color = G.Dim, fontFamily = FontFamily.Monospace)
+            }
+        }
+    )
+}
+
+@Composable
+private fun FolderPickDialog(
+    folders: List<AppFolder>,
+    onDismiss: () -> Unit,
+    onPick: (String) -> Unit,
+    onCreateNew: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = G.PanelStrong,
+        title = {
+            Text(
+                "フォルダにしまう",
+                color = G.White,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column {
+                Text(
+                    "選んだアプリは A〜Z 一覧から隠れます。",
+                    color = G.Dim,
+                    fontSize = 12.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+                Spacer(Modifier.height(10.dp))
+                folders.forEach { folder ->
+                    Text(
+                        text = "\u25A3  ${folder.name}  (${folder.packageNames.size})",
+                        color = G.White,
+                        fontSize = 15.sp,
+                        fontFamily = FontFamily.Monospace,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onPick(folder.id) }
+                            .padding(vertical = 10.dp)
+                    )
+                }
+                Text(
+                    text = "\uFF0B  新しいフォルダ…",
+                    color = G.Cyan,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onCreateNew)
+                        .padding(vertical = 10.dp)
+                )
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("キャンセル", color = G.Dim, fontFamily = FontFamily.Monospace)
+            }
+        }
+    )
 }
 
 /* ------------------------------------------------------------------ */
