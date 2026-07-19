@@ -5,46 +5,52 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- V-fin (left / red) -->
+    <!-- V-fin blades (yellow) -->
     <path
-        android:fillColor="#E0353C"
-        android:pathData="M54,28 L51,45 L46,45 L52,30 Z" />
-    <!-- V-fin (right / red) -->
+        android:fillColor="#F2C230"
+        android:pathData="M54,27 L50,45 L45,45 L52,29 Z" />
     <path
-        android:fillColor="#E0353C"
-        android:pathData="M54,28 L57,45 L62,45 L56,30 Z" />
-    <!-- V-fin center gem (yellow) -->
+        android:fillColor="#F2C230"
+        android:pathData="M54,27 L58,45 L63,45 L56,29 Z" />
+    <!-- V-fin center gem (red) -->
     <path
-        android:fillColor="#F4C020"
-        android:pathData="M54,42 l3,4 l-3,4 l-3,-4 z" />
+        android:fillColor="#D8232A"
+        android:pathData="M54,41 l3,4 l-3,4 l-3,-4 z" />
+
+    <!-- Side vents / ears (blue) -->
+    <path
+        android:fillColor="#2C6BE6"
+        android:pathData="M41,53 L46,51 L46,67 L42,64 Z" />
+    <path
+        android:fillColor="#2C6BE6"
+        android:pathData="M67,53 L62,51 L62,67 L66,64 Z" />
 
     <!-- Helmet / face (white) -->
     <path
-        android:fillColor="#EDEFF5"
-        android:pathData="M45,45 L63,45 L67,60 L60,76 L48,76 L41,60 Z" />
+        android:fillColor="#EAEEF6"
+        android:pathData="M45,45 L63,45 L66,60 L60,76 L48,76 L42,60 Z" />
 
-    <!-- Forehead crest (yellow) -->
+    <!-- Forehead crest (red) -->
     <path
-        android:fillColor="#F4C020"
-        android:pathData="M49,48 L59,48 L54,55 Z" />
+        android:fillColor="#D8232A"
+        android:pathData="M50,47 L58,47 L54,53 Z" />
 
     <!-- Visor (dark) -->
     <path
-        android:fillColor="#0B1220"
+        android:fillColor="#0A1122"
         android:pathData="M44,57 L64,57 L61,66 L47,66 Z" />
 
-    <!-- Left eye (yellow) -->
+    <!-- Eyes (yellow) -->
     <path
-        android:fillColor="#F4C020"
+        android:fillColor="#F2C230"
         android:pathData="M47,59 L52,59 L51,64 L48,64 Z" />
-    <!-- Right eye (yellow) -->
     <path
-        android:fillColor="#F4C020"
+        android:fillColor="#F2C230"
         android:pathData="M56,59 L61,59 L60,64 L57,64 Z" />
 
-    <!-- Mouth vents (blue) -->
+    <!-- Chin vents (blue) -->
     <path
-        android:strokeColor="#2E7BE0"
+        android:strokeColor="#2C6BE6"
         android:strokeWidth="1"
         android:pathData="M50,70 L58,70 M51,73 L57,73" />
 </vector>

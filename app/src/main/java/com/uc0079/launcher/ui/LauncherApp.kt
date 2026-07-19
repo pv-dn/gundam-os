@@ -154,12 +154,12 @@ private fun HudHeader(unitCount: Int) {
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = "E.F.S.F.",
+                text = "A.E.U.G. // MSZ-006",
                 color = G.Cyan,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
                 fontFamily = FontFamily.Monospace,
-                letterSpacing = 2.sp
+                letterSpacing = 1.sp
             )
             Spacer(Modifier.weight(1f))
             Text(
@@ -187,7 +187,7 @@ private fun HudHeader(unitCount: Int) {
             )
             Spacer(Modifier.weight(1f))
             Text(
-                text = "UNITS:$unitCount",
+                text = "U.C.0087 \u00B7 UNITS:$unitCount",
                 color = G.Dim,
                 fontSize = 12.sp,
                 fontFamily = FontFamily.Monospace

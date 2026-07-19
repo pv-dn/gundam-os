@@ -13,20 +13,20 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
-/** Gundam / U.C. cockpit HUD palette. */
+/** Zeta Gundam (A.E.U.G. / MSZ-006) cockpit HUD palette. */
 object G {
-    val Bg = Color(0xFF05070D)
-    val ScrimTop = Color(0xF2060810)
+    val Bg = Color(0xFF04060C)
+    val ScrimTop = Color(0xF20A1020)
     val ScrimBottom = Color(0xFA03040A)
-    val Panel = Color(0x14318FE0)
-    val PanelStrong = Color(0x22102A46)
-    val Border = Color(0x552E7BE0)
-    val Blue = Color(0xFF3B86E8)
-    val Cyan = Color(0xFF37D0DA)
-    val Red = Color(0xFFE0353C)
-    val Yellow = Color(0xFFF4C020)
-    val White = Color(0xFFE9EEF7)
-    val Dim = Color(0xFF8394AE)
+    val Panel = Color(0x1A2C6BE6)
+    val PanelStrong = Color(0x2A16305E)
+    val Border = Color(0x662C6BE6)
+    val Blue = Color(0xFF2C6BE6)
+    val Cyan = Color(0xFF4FB6E6)
+    val Red = Color(0xFFD8232A)
+    val Yellow = Color(0xFFF2C230)
+    val White = Color(0xFFEAEEF6)
+    val Dim = Color(0xFF8393AE)
 }
 
 @Composable
@@ -51,7 +51,7 @@ fun GundamTheme(content: @Composable () -> Unit) {
 fun Modifier.hudFrame(
     border: Color = G.Border,
     fill: Color = G.Panel,
-    bracket: Color = G.Cyan,
+    bracket: Color = G.Blue,
     cut: Dp = 8.dp,
 ): Modifier = this.drawBehind {
     val c = cut.toPx()
