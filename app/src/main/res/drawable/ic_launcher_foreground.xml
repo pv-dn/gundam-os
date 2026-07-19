@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- V-fin (left / red) -->
+    <path
+        android:fillColor="#E0353C"
+        android:pathData="M54,28 L51,45 L46,45 L52,30 Z" />
+    <!-- V-fin (right / red) -->
+    <path
+        android:fillColor="#E0353C"
+        android:pathData="M54,28 L57,45 L62,45 L56,30 Z" />
+    <!-- V-fin center gem (yellow) -->
+    <path
+        android:fillColor="#F4C020"
+        android:pathData="M54,42 l3,4 l-3,4 l-3,-4 z" />
+
+    <!-- Helmet / face (white) -->
+    <path
+        android:fillColor="#EDEFF5"
+        android:pathData="M45,45 L63,45 L67,60 L60,76 L48,76 L41,60 Z" />
+
+    <!-- Forehead crest (yellow) -->
+    <path
+        android:fillColor="#F4C020"
+        android:pathData="M49,48 L59,48 L54,55 Z" />
+
+    <!-- Visor (dark) -->
+    <path
+        android:fillColor="#0B1220"
+        android:pathData="M44,57 L64,57 L61,66 L47,66 Z" />
+
+    <!-- Left eye (yellow) -->
+    <path
+        android:fillColor="#F4C020"
+        android:pathData="M47,59 L52,59 L51,64 L48,64 Z" />
+    <!-- Right eye (yellow) -->
+    <path
+        android:fillColor="#F4C020"
+        android:pathData="M56,59 L61,59 L60,64 L57,64 Z" />
+
+    <!-- Mouth vents (blue) -->
+    <path
+        android:strokeColor="#2E7BE0"
+        android:strokeWidth="1"
+        android:pathData="M50,70 L58,70 M51,73 L57,73" />
+</vector>
