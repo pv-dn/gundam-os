@@ -30,7 +30,10 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
@@ -44,17 +47,21 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import com.uc0079.launcher.AppInfo
 import com.uc0079.launcher.LauncherViewModel
+import com.uc0079.launcher.WidgetHostController
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
@@ -64,13 +71,13 @@ import java.util.Locale
 private enum class Screen { HOME, ALL }
 
 @Composable
-fun LauncherApp(vm: LauncherViewModel) {
+fun LauncherApp(vm: LauncherViewModel, widgets: WidgetHostController) {
     GundamTheme {
         var screen by remember { mutableStateOf(Screen.HOME) }
 
         ScrimBackground(Modifier.fillMaxSize()) {
             when (screen) {
-                Screen.HOME -> HomeScreen(vm) { screen = Screen.ALL }
+                Screen.HOME -> HomeScreen(vm, widgets) { screen = Screen.ALL }
                 Screen.ALL -> {
                     BackHandler { screen = Screen.HOME }
                     AllAppsScreen(vm) { screen = Screen.HOME }
@@ -85,32 +92,36 @@ fun LauncherApp(vm: LauncherViewModel) {
 /* ------------------------------------------------------------------ */
 
 @Composable
-private fun HomeScreen(vm: LauncherViewModel, onOpenAll: () -> Unit) {
+private fun HomeScreen(vm: LauncherViewModel, widgets: WidgetHostController, onOpenAll: () -> Unit) {
     val favorites = vm.favoriteApps
+    val scroll = rememberScrollState()
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .statusBarsPadding()
             .navigationBarsPadding()
-            .pointerInput(Unit) {
-                var total = 0f
-                detectVerticalDragGestures(
-                    onDragStart = { total = 0f },
-                    onVerticalDrag = { _, dy -> total += dy },
-                    onDragEnd = { if (total < -90f) onOpenAll() },
-                    onDragCancel = { total = 0f }
-                )
-            }
             .padding(horizontal = 18.dp)
     ) {
-        HudHeader(unitCount = vm.apps.size)
+        HudHeader(unitCount = vm.apps.size, onSwipeUp = onOpenAll)
 
-        Spacer(Modifier.height(20.dp))
-        SectionLabel("FAVORITE UNITS / お気に入り")
-        Spacer(Modifier.height(6.dp))
+        Column(
+            Modifier
+                .weight(1f)
+                .verticalScroll(scroll)
+        ) {
+            Spacer(Modifier.height(16.dp))
+            SectionLabel("WIDGETS / ウィジェット")
+            Spacer(Modifier.height(8.dp))
+            widgets.widgetIds.forEach { id ->
+                WidgetFrame(widgets = widgets, id = id)
+                Spacer(Modifier.height(10.dp))
+            }
+            AddWidgetButton { widgets.pickWidget() }
 
-        Column(Modifier.weight(1f)) {
+            Spacer(Modifier.height(22.dp))
+            SectionLabel("FAVORITE UNITS / お気に入り")
+            Spacer(Modifier.height(6.dp))
             if (favorites.isEmpty()) {
                 Text(
                     text = "登録なし — 下の [ALL UNITS] を開き、\nアプリを長押しして「お気に入りに追加」してください。",
@@ -133,6 +144,7 @@ private fun HomeScreen(vm: LauncherViewModel, onOpenAll: () -> Unit) {
                     )
                 }
             }
+            Spacer(Modifier.height(14.dp))
         }
 
         AllUnitsButton(onOpenAll)
@@ -141,7 +153,64 @@ private fun HomeScreen(vm: LauncherViewModel, onOpenAll: () -> Unit) {
 }
 
 @Composable
-private fun HudHeader(unitCount: Int) {
+private fun WidgetFrame(widgets: WidgetHostController, id: Int) {
+    val minH = remember(id) { widgets.minHeightPx(id) }
+    val heightDp = with(LocalDensity.current) { minH.toDp() }.coerceIn(72.dp, 340.dp)
+
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .hudFrame(fill = G.PanelStrong)
+            .padding(6.dp)
+    ) {
+        AndroidView(
+            factory = { ctx ->
+                widgets.createHostView(ctx, id) ?: android.widget.FrameLayout(ctx)
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(heightDp)
+        )
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(2.dp)
+                .size(22.dp)
+                .background(G.PanelStrong)
+                .clickable { widgets.removeWidget(id) },
+            contentAlignment = Alignment.Center
+        ) {
+            Text("\u2715", color = G.Red, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+@Composable
+private fun AddWidgetButton(onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .hudFrame(fill = G.Panel, bracket = G.Cyan)
+            .clickable(onClick = onClick)
+            .padding(vertical = 11.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "\uFF0B  ADD WIDGET  /  ウィジェット追加",
+            color = G.White,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+            fontFamily = FontFamily.Monospace,
+            letterSpacing = 1.sp
+        )
+    }
+}
+
+private val Green = Color(0xFF15C26B)
+
+@Composable
+private fun HudHeader(unitCount: Int, onSwipeUp: () -> Unit) {
     val (time, date) = rememberClock()
     val battery = rememberBatteryPercent()
 
@@ -149,6 +218,15 @@ private fun HudHeader(unitCount: Int) {
         Modifier
             .fillMaxWidth()
             .padding(top = 14.dp)
+            .pointerInput(Unit) {
+                var total = 0f
+                detectVerticalDragGestures(
+                    onDragStart = { total = 0f },
+                    onVerticalDrag = { _, dy -> total += dy },
+                    onDragEnd = { if (total < -90f) onSwipeUp() },
+                    onDragCancel = { total = 0f }
+                )
+            }
             .hudFrame()
             .padding(horizontal = 14.dp, vertical = 12.dp)
     ) {
@@ -169,15 +247,60 @@ private fun HudHeader(unitCount: Int) {
                 fontFamily = FontFamily.Monospace
             )
         }
-        Spacer(Modifier.height(4.dp))
-        Text(
-            text = time,
-            color = G.White,
-            fontSize = 52.sp,
-            fontWeight = FontWeight.Bold,
-            fontFamily = FontFamily.Monospace,
-            letterSpacing = 2.sp
-        )
+
+        Spacer(Modifier.height(8.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            StatusDot(G.Yellow, "SYS")
+            Spacer(Modifier.width(12.dp))
+            StatusDot(Green, "COM")
+            Spacer(Modifier.width(12.dp))
+            StatusDot(G.Cyan, "NAV")
+            Spacer(Modifier.weight(1f))
+            Text(
+                text = "ALL GREEN",
+                color = Green,
+                fontSize = 10.sp,
+                fontFamily = FontFamily.Monospace,
+                letterSpacing = 1.sp
+            )
+        }
+
+        Spacer(Modifier.height(8.dp))
+        Row(verticalAlignment = Alignment.Bottom) {
+            Box(
+                Modifier
+                    .width(5.dp)
+                    .height(48.dp)
+                    .background(G.Red)
+            )
+            Spacer(Modifier.width(12.dp))
+            Text(
+                text = time,
+                color = G.White,
+                fontSize = 52.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace,
+                letterSpacing = 2.sp
+            )
+            Spacer(Modifier.weight(1f))
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    text = "\u30BC\u30FC\u30BF\u30AC\u30F3\u30C0\u30E0",
+                    color = G.Dim,
+                    fontSize = 10.sp
+                )
+                Text(
+                    text = "ZETA",
+                    color = G.Blue,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace,
+                    letterSpacing = 4.sp
+                )
+            }
+        }
+
+        Spacer(Modifier.height(6.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = date,
@@ -193,6 +316,24 @@ private fun HudHeader(unitCount: Int) {
                 fontFamily = FontFamily.Monospace
             )
         }
+    }
+}
+
+@Composable
+private fun StatusDot(color: Color, label: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            Modifier
+                .size(7.dp)
+                .background(color, CircleShape)
+        )
+        Spacer(Modifier.width(5.dp))
+        Text(
+            text = label,
+            color = G.Dim,
+            fontSize = 10.sp,
+            fontFamily = FontFamily.Monospace
+        )
     }
 }
 
@@ -227,6 +368,7 @@ private data class ListRow(val header: Char?, val app: AppInfo?)
 @Composable
 private fun AllAppsScreen(vm: LauncherViewModel, onClose: () -> Unit) {
     var query by remember { mutableStateOf("") }
+    var activeLetter by remember { mutableStateOf<Char?>(null) }
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
 
@@ -273,47 +415,70 @@ private fun AllAppsScreen(vm: LauncherViewModel, onClose: () -> Unit) {
         )
         Spacer(Modifier.height(10.dp))
 
-        Row(Modifier.weight(1f)) {
-            LazyColumn(
-                state = listState,
-                modifier = Modifier.weight(1f)
-            ) {
-                items(rows.size) { i ->
-                    val row = rows[i]
-                    if (row.header != null) {
-                        Text(
-                            text = row.header.toString(),
-                            color = G.Cyan,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace,
-                            modifier = Modifier.padding(start = 6.dp, top = 14.dp, bottom = 4.dp)
-                        )
-                    } else if (row.app != null) {
-                        val app = row.app
-                        AppRow(
-                            app = app,
-                            isFavorite = vm.isFavorite(app.packageName),
-                            onLaunch = { vm.launchApp(app.packageName) },
-                            onToggleFavorite = { vm.toggleFavorite(app.packageName) },
-                            onInfo = { vm.openAppInfo(app.packageName) },
-                            onUninstall = { vm.uninstall(app.packageName) },
-                            labelSize = 18.sp,
-                            iconSize = 30.dp
-                        )
+        Box(Modifier.weight(1f)) {
+            Row(Modifier.fillMaxSize()) {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    items(rows.size) { i ->
+                        val row = rows[i]
+                        if (row.header != null) {
+                            Text(
+                                text = row.header.toString(),
+                                color = G.Cyan,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace,
+                                modifier = Modifier.padding(start = 6.dp, top = 14.dp, bottom = 4.dp)
+                            )
+                        } else if (row.app != null) {
+                            val app = row.app
+                            AppRow(
+                                app = app,
+                                isFavorite = vm.isFavorite(app.packageName),
+                                onLaunch = { vm.launchApp(app.packageName) },
+                                onToggleFavorite = { vm.toggleFavorite(app.packageName) },
+                                onInfo = { vm.openAppInfo(app.packageName) },
+                                onUninstall = { vm.uninstall(app.packageName) },
+                                labelSize = 18.sp,
+                                iconSize = 30.dp
+                            )
+                        }
                     }
+                }
+
+                if (query.isBlank() && letterIndex.isNotEmpty()) {
+                    AlphabetScroller(
+                        letters = letterIndex.keys.toList(),
+                        activeLetter = activeLetter,
+                        onActiveChange = { activeLetter = it },
+                        onLetter = { c ->
+                            letterIndex[c]?.let { idx ->
+                                scope.launch { listState.scrollToItem(idx) }
+                            }
+                        }
+                    )
                 }
             }
 
-            if (query.isBlank() && letterIndex.isNotEmpty()) {
-                AlphabetScroller(
-                    letters = letterIndex.keys.toList(),
-                    onLetter = { c ->
-                        letterIndex[c]?.let { idx ->
-                            scope.launch { listState.scrollToItem(idx) }
-                        }
-                    }
-                )
+            activeLetter?.let { c ->
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .padding(end = 42.dp)
+                        .size(78.dp)
+                        .hudFrame(fill = G.PanelStrong, bracket = G.Cyan),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = c.toString(),
+                        color = G.White,
+                        fontSize = 42.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
             }
         }
     }
@@ -371,13 +536,19 @@ private fun SearchBar(
 }
 
 @Composable
-private fun AlphabetScroller(letters: List<Char>, onLetter: (Char) -> Unit) {
+private fun AlphabetScroller(
+    letters: List<Char>,
+    activeLetter: Char?,
+    onActiveChange: (Char?) -> Unit,
+    onLetter: (Char) -> Unit
+) {
     var heightPx by remember { mutableStateOf(1) }
     Column(
         modifier = Modifier
             .fillMaxHeight()
-            .width(26.dp)
+            .width(30.dp)
             .padding(start = 4.dp)
+            .background(G.Panel)
             .onSizeChanged { heightPx = if (it.height > 0) it.height else 1 }
             .pointerInput(letters, heightPx) {
                 awaitEachGesture {
@@ -386,7 +557,9 @@ private fun AlphabetScroller(letters: List<Char>, onLetter: (Char) -> Unit) {
                         val idx = ((y / heightPx) * letters.size)
                             .toInt()
                             .coerceIn(0, letters.size - 1)
-                        onLetter(letters[idx])
+                        val c = letters[idx]
+                        onActiveChange(c)
+                        onLetter(c)
                     }
                     val down = awaitFirstDown(requireUnconsumed = false)
                     pick(down.position.y)
@@ -398,16 +571,19 @@ private fun AlphabetScroller(letters: List<Char>, onLetter: (Char) -> Unit) {
                         pick(change.position.y)
                         change.consume()
                     }
+                    onActiveChange(null)
                 }
             },
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceEvenly
     ) {
         letters.forEach { c ->
+            val on = c == activeLetter
             Text(
                 text = c.toString(),
-                color = G.Cyan,
-                fontSize = 10.sp,
+                color = if (on) G.Yellow else G.Cyan,
+                fontSize = if (on) 12.sp else 10.sp,
+                fontWeight = if (on) FontWeight.Bold else FontWeight.Normal,
                 fontFamily = FontFamily.Monospace
             )
         }

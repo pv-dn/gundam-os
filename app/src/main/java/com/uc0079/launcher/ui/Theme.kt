@@ -100,6 +100,19 @@ fun ScrimBackground(modifier: Modifier = Modifier, content: @Composable () -> Un
                     listOf(G.ScrimTop, G.ScrimBottom)
                 )
             )
-            .padding(0.dp)
+            .drawBehind {
+                val gap = 4.dp.toPx()
+                val line = Color(0x0A4FB6E6)
+                var y = 0f
+                while (y < size.height) {
+                    drawLine(
+                        color = line,
+                        start = androidx.compose.ui.geometry.Offset(0f, y),
+                        end = androidx.compose.ui.geometry.Offset(size.width, y),
+                        strokeWidth = 1f
+                    )
+                    y += gap
+                }
+            }
     ) { content() }
 }
