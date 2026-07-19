@@ -6,7 +6,7 @@
   :root{
     --bg:#04060C; --scrim1:#0B1224; --scrim2:#03040A;
     --blue:#2C6BE6; --cyan:#4FB6E6; --red:#D8232A; --yellow:#F2C230;
-    --white:#EAEEF6; --dim:#8393AE;
+    --green:#15C26B; --white:#EAEEF6; --dim:#8393AE;
     --panel:rgba(44,107,230,.10); --panelStrong:rgba(22,48,94,.35);
     --border:rgba(44,107,230,.45);
     --mono:"Consolas","SF Mono","DejaVu Sans Mono",monospace;
@@ -14,21 +14,17 @@
   *{box-sizing:border-box;margin:0;padding:0}
   body{background:#000;display:flex;gap:34px;padding:34px;font-family:Segoe UI,Roboto,Arial,sans-serif}
   .phone{
-    width:360px;height:740px;border-radius:34px;overflow:hidden;position:relative;
+    width:360px;height:760px;border-radius:34px;overflow:hidden;position:relative;
     background:linear-gradient(180deg,var(--scrim1),var(--scrim2));
     box-shadow:0 0 0 8px #14161c,0 20px 60px rgba(0,0,0,.6);
   }
-  /* faint grid */
-  .phone::before{content:"";position:absolute;inset:0;
-    background-image:linear-gradient(rgba(44,107,230,.06) 1px,transparent 1px),
-                     linear-gradient(90deg,rgba(44,107,230,.06) 1px,transparent 1px);
-    background-size:40px 40px;pointer-events:none}
+  .phone::before{content:"";position:absolute;inset:0;pointer-events:none;
+    background:repeating-linear-gradient(180deg,rgba(79,182,230,.05) 0 1px,transparent 1px 4px)}
   .statusbar{display:flex;justify-content:space-between;color:var(--dim);
     font-family:var(--mono);font-size:11px;padding:8px 16px 0}
   .wrap{position:relative;padding:6px 18px 16px;height:100%;display:flex;flex-direction:column}
 
-  .hud{position:relative;padding:12px 14px;margin-top:8px;
-    background:var(--panel);
+  .hud{position:relative;padding:12px 14px;margin-top:8px;background:var(--panel);
     clip-path:polygon(9px 0,100% 0,100% calc(100% - 9px),calc(100% - 9px) 100%,0 100%,0 9px);
     outline:1px solid var(--border);outline-offset:-1px}
   .hud.strong{background:var(--panelStrong)}
@@ -37,144 +33,139 @@
   .brk.br{bottom:0;right:9px;border-bottom:2px solid var(--cyan);border-right:2px solid var(--cyan)}
   .brk.y.tl{border-color:var(--yellow)} .brk.y.br{border-color:var(--yellow)}
 
-  .row1{display:flex;justify-content:space-between;align-items:center}
+  .row{display:flex;align-items:center}
+  .between{justify-content:space-between}
   .tag{color:var(--cyan);font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:1px}
   .pwr{color:var(--yellow);font-family:var(--mono);font-size:11px}
-  .clock{color:var(--white);font-family:var(--mono);font-size:52px;font-weight:800;letter-spacing:2px;line-height:1.05;margin-top:2px}
-  .row2{display:flex;justify-content:space-between;color:var(--dim);font-family:var(--mono);font-size:12px}
+  .dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:5px}
+  .st{color:var(--dim);font-family:var(--mono);font-size:10px;margin-right:12px;display:flex;align-items:center}
+  .green{color:var(--green);font-family:var(--mono);font-size:10px;letter-spacing:1px}
+  .hazard{width:5px;height:48px;background:var(--red);margin-right:12px}
+  .clock{color:var(--white);font-family:var(--mono);font-size:52px;font-weight:800;letter-spacing:2px;line-height:1}
+  .zeta{color:var(--blue);font-family:var(--mono);font-size:16px;font-weight:800;letter-spacing:4px}
+  .kana{color:var(--dim);font-size:10px;text-align:right}
+  .sub{display:flex;justify-content:space-between;color:var(--dim);font-family:var(--mono);font-size:12px;margin-top:6px}
 
-  .section{display:flex;align-items:center;gap:8px;margin:22px 2px 8px}
-  .skew{width:14px;height:10px;background:var(--red);
-    clip-path:polygon(5px 0,100% 0,calc(100% - 5px) 100%,0 100%)}
+  .section{display:flex;align-items:center;gap:8px;margin:18px 2px 8px}
+  .skew{width:14px;height:10px;background:var(--red);clip-path:polygon(5px 0,100% 0,calc(100% - 5px) 100%,0 100%)}
   .section span{color:var(--dim);font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:1px}
 
-  .app{display:flex;align-items:center;gap:14px;padding:9px 2px}
-  .ic{width:34px;height:34px;border-radius:9px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;
-    color:#fff;font-weight:700;font-size:15px}
-  .app .nm{color:var(--white);font-size:21px;font-weight:500;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .widget{position:relative;background:var(--panelStrong);outline:1px solid var(--border);padding:14px;
+    clip-path:polygon(9px 0,100% 0,100% calc(100% - 9px),calc(100% - 9px) 100%,0 100%,0 9px)}
+  .widget .wclock{color:#fff;font:800 34px var(--mono)}
+  .widget .wsub{color:#cfe0ff;font:13px var(--mono);margin-top:2px}
+  .widget .wx{position:absolute;top:4px;right:4px;width:20px;height:20px;background:rgba(0,0,0,.4);color:var(--red);
+    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px}
+
+  .addbtn{position:relative;text-align:center;padding:11px;margin-top:10px;background:var(--panel);
+    color:var(--white);font-family:var(--mono);font-weight:700;letter-spacing:1px;font-size:13px;
+    clip-path:polygon(9px 0,100% 0,100% calc(100% - 9px),calc(100% - 9px) 100%,0 100%,0 9px);
+    outline:1px solid var(--border);outline-offset:-1px}
+
+  .app{display:flex;align-items:center;gap:14px;padding:8px 2px}
+  .ic{width:34px;height:34px;border-radius:9px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:15px}
+  .app .nm{color:var(--white);font-size:20px;font-weight:500;flex:1}
   .star{color:var(--yellow);font-size:12px}
   .small .ic{width:30px;height:30px;font-size:13px}
   .small .nm{font-size:18px}
 
   .spacer{flex:1}
-  .allbtn{position:relative;text-align:center;padding:13px;background:var(--panelStrong);
-    color:var(--white);font-family:var(--mono);font-weight:700;letter-spacing:1px;font-size:14px;
+  .allbtn{position:relative;text-align:center;padding:13px;background:var(--panelStrong);color:var(--white);
+    font-family:var(--mono);font-weight:700;letter-spacing:1px;font-size:14px;
     clip-path:polygon(9px 0,100% 0,100% calc(100% - 9px),calc(100% - 9px) 100%,0 100%,0 9px);
     outline:1px solid var(--border);outline-offset:-1px}
 
-  /* all apps */
   .search{position:relative;display:flex;align-items:center;gap:10px;padding:11px 14px;margin-top:8px;background:var(--panel);
-    clip-path:polygon(9px 0,100% 0,100% calc(100% - 9px),calc(100% - 9px) 100%,0 100%,0 9px);
-    outline:1px solid var(--border);outline-offset:-1px}
+    clip-path:polygon(9px 0,100% 0,100% calc(100% - 9px),calc(100% - 9px) 100%,0 100%,0 9px);outline:1px solid var(--border);outline-offset:-1px}
   .search .ph{color:var(--dim);font-family:var(--mono);font-size:15px;flex:1}
   .search .x{color:var(--red);font-weight:700;font-size:18px}
   .list{position:relative;display:flex;margin-top:12px;flex:1;overflow:hidden}
   .col{flex:1}
-  .hdr{color:var(--cyan);font-family:var(--mono);font-size:13px;font-weight:700;margin:12px 0 2px 4px}
-  .az{width:20px;display:flex;flex-direction:column;justify-content:space-between;align-items:center;padding-top:6px}
+  .hdr{color:var(--cyan);font-family:var(--mono);font-size:13px;font-weight:700;margin:10px 0 2px 4px}
+  .az{width:26px;background:var(--panel);display:flex;flex-direction:column;justify-content:space-between;align-items:center;padding:8px 0}
   .az b{color:var(--cyan);font-family:var(--mono);font-size:10px;font-weight:400}
-  .title{position:absolute;bottom:8px;left:0;right:0;text-align:center;color:#555;font-family:var(--mono);font-size:11px}
+  .az b.on{color:var(--yellow);font-weight:700;font-size:12px}
+  .bubble{position:absolute;right:44px;top:50%;transform:translateY(-50%);width:78px;height:78px;background:var(--panelStrong);
+    outline:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:#fff;font:800 42px var(--mono);
+    clip-path:polygon(9px 0,100% 0,100% calc(100% - 9px),calc(100% - 9px) 100%,0 100%,0 9px)}
   .label{color:#7c86a0;font:600 12px var(--mono);text-align:center;margin-top:10px}
-  .menu{position:absolute;left:40px;top:44px;z-index:5;min-width:190px;padding:4px 0;
-    background:#0d1830;outline:1px solid var(--border);box-shadow:0 10px 30px rgba(0,0,0,.6)}
-  .menu .mi{color:var(--white);font-family:var(--mono);font-size:14px;padding:11px 16px}
-  .menu .mi.red{color:var(--red)}
 </style>
 </head>
 <body>
 
-  <!-- ================= HOME ================= -->
+  <!-- ============ HOME (widgets + Zeta HUD) ============ -->
   <div>
   <div class="phone">
     <div class="statusbar"><span>▮ docomo</span><span>23:38  ▤ ▨ 84%</span></div>
     <div class="wrap">
       <div class="hud">
         <span class="brk tl"></span><span class="brk br"></span>
-        <div class="row1"><div class="tag">A.E.U.G. // MSZ-006</div><div class="pwr">PWR 84%</div></div>
-        <div class="clock">23:38</div>
-        <div class="row2"><span>2026.07.19 (日)</span><span>U.C.0087 · UNITS:42</span></div>
+        <div class="row between"><div class="tag">A.E.U.G. // MSZ-006</div><div class="pwr">PWR 84%</div></div>
+        <div class="row" style="margin-top:8px">
+          <span class="st"><i class="dot" style="background:var(--yellow)"></i>SYS</span>
+          <span class="st"><i class="dot" style="background:var(--green)"></i>COM</span>
+          <span class="st"><i class="dot" style="background:var(--cyan)"></i>NAV</span>
+          <span class="spacer"></span><span class="green">ALL GREEN</span>
+        </div>
+        <div class="row" style="margin-top:8px;align-items:flex-end">
+          <div class="hazard"></div>
+          <div class="clock">23:38</div>
+          <span class="spacer"></span>
+          <div><div class="kana">ゼータガンダム</div><div class="zeta">ZETA</div></div>
+        </div>
+        <div class="sub"><span>2026.07.19 (日)</span><span>U.C.0087 · UNITS:42</span></div>
       </div>
 
-      <div class="section"><span class="skew"></span><span>FAVORITE UNITS / お気に入り</span></div>
+      <div class="section"><span class="skew"></span><span>WIDGETS / ウィジェット</span></div>
+      <div class="widget">
+        <div class="wx">✕</div>
+        <div class="wclock">23:38</div>
+        <div class="wsub">7月19日(日) ・ 東京 26°C 晴れ</div>
+      </div>
+      <div class="addbtn">＋ ADD WIDGET / ウィジェット追加</div>
 
+      <div class="section"><span class="skew"></span><span>FAVORITE UNITS / お気に入り</span></div>
       <div class="app"><div class="ic" style="background:#12B76A">☎</div><div class="nm">電話</div><span class="star">★</span></div>
       <div class="app"><div class="ic" style="background:#2C6BE6">✉</div><div class="nm">メッセージ</div><span class="star">★</span></div>
       <div class="app"><div class="ic" style="background:linear-gradient(135deg,#EA4335,#FBBC05)">◎</div><div class="nm">Chrome</div><span class="star">★</span></div>
       <div class="app"><div class="ic" style="background:#FF0000">▶</div><div class="nm">YouTube</div><span class="star">★</span></div>
-      <div class="app"><div class="ic" style="background:#111">◉</div><div class="nm">カメラ</div><span class="star">★</span></div>
-      <div class="app"><div class="ic" style="background:#5A6472">⚙</div><div class="nm">設定</div><span class="star">★</span></div>
 
       <div class="spacer"></div>
       <div class="allbtn"><span class="brk y tl"></span><span class="brk y br"></span>▲&nbsp;&nbsp;ALL UNITS&nbsp;&nbsp;/&nbsp;&nbsp;全アプリ</div>
     </div>
   </div>
-  <div class="label">ホーム画面</div>
+  <div class="label">ホーム画面（ウィジェット＋Zガンダム計器）</div>
   </div>
 
-  <!-- ================= LONG PRESS MENU ================= -->
+  <!-- ============ ALL APPS (A-Z drag) ============ -->
   <div>
   <div class="phone">
     <div class="statusbar"><span>▮ docomo</span><span>23:38  ▤ ▨ 84%</span></div>
     <div class="wrap">
-      <div class="hud">
-        <span class="brk tl"></span><span class="brk br"></span>
-        <div class="row1"><div class="tag">A.E.U.G. // MSZ-006</div><div class="pwr">PWR 84%</div></div>
-        <div class="clock">23:38</div>
-        <div class="row2"><span>2026.07.19 (日)</span><span>U.C.0087 · UNITS:42</span></div>
-      </div>
-      <div class="section"><span class="skew"></span><span>FAVORITE UNITS / お気に入り</span></div>
-      <div class="app"><div class="ic" style="background:#12B76A">☎</div><div class="nm">電話</div><span class="star">★</span></div>
-      <div class="app" style="position:relative">
-        <div class="ic" style="background:#2C6BE6">✉</div><div class="nm">メッセージ</div><span class="star">★</span>
-        <div class="menu">
-          <div class="mi">お気に入りから削除</div>
-          <div class="mi">アプリ情報</div>
-          <div class="mi red">アンインストール</div>
-        </div>
-      </div>
-      <div class="app"><div class="ic" style="background:linear-gradient(135deg,#EA4335,#FBBC05)">◎</div><div class="nm">Chrome</div><span class="star">★</span></div>
-      <div class="app"><div class="ic" style="background:#FF0000">▶</div><div class="nm">YouTube</div><span class="star">★</span></div>
-      <div class="app"><div class="ic" style="background:#111">◉</div><div class="nm">カメラ</div><span class="star">★</span></div>
-      <div class="app"><div class="ic" style="background:#5A6472">⚙</div><div class="nm">設定</div><span class="star">★</span></div>
-      <div class="spacer"></div>
-      <div class="allbtn"><span class="brk y tl"></span><span class="brk y br"></span>▲&nbsp;&nbsp;ALL UNITS&nbsp;&nbsp;/&nbsp;&nbsp;全アプリ</div>
-    </div>
-  </div>
-  <div class="label">アプリ長押し（メニュー）</div>
-  </div>
-
-  <!-- ================= ALL APPS ================= -->
-  <div>
-  <div class="phone">
-    <div class="statusbar"><span>▮ docomo</span><span>23:38  ▤ ▨ 84%</span></div>
-    <div class="wrap">
-      <div class="search">
-        <span class="brk tl"></span><span class="brk br"></span>
-        <span>🔍</span><span class="ph">SEARCH UNIT / 検索…</span><span class="x">✕</span>
-      </div>
-
+      <div class="search"><span class="brk tl"></span><span class="brk br"></span>
+        <span>🔍</span><span class="ph">SEARCH UNIT / 検索…</span><span class="x">✕</span></div>
       <div class="list">
         <div class="col">
-          <div class="hdr">A</div>
-          <div class="app small"><div class="ic" style="background:#0F9D58">A</div><div class="nm">Amazon</div></div>
-          <div class="app small"><div class="ic" style="background:#00A1E0">A</div><div class="nm">Authenticator</div></div>
-          <div class="hdr">C</div>
-          <div class="app small"><div class="ic" style="background:linear-gradient(135deg,#EA4335,#FBBC05)">C</div><div class="nm">Chrome</div></div>
-          <div class="app small"><div class="ic" style="background:#111">C</div><div class="nm">カメラ</div></div>
           <div class="hdr">G</div>
           <div class="app small"><div class="ic" style="background:#4285F4">G</div><div class="nm">Gmail</div></div>
           <div class="app small"><div class="ic" style="background:#34A853">G</div><div class="nm">Google Maps</div></div>
           <div class="hdr">L</div>
           <div class="app small"><div class="ic" style="background:#06C755">L</div><div class="nm">LINE</div></div>
+          <div class="hdr">M</div>
+          <div class="app small"><div class="ic" style="background:#E60023">M</div><div class="nm">マップ</div></div>
+          <div class="app small"><div class="ic" style="background:#2C6BE6">M</div><div class="nm">メルカリ</div></div>
+          <div class="hdr">P</div>
+          <div class="app small"><div class="ic" style="background:#0F9D58">P</div><div class="nm">PayPay</div></div>
         </div>
         <div class="az">
-          <b>A</b><b>C</b><b>G</b><b>L</b><b>M</b><b>P</b><b>S</b><b>Y</b><b>#</b>
+          <b>A</b><b>C</b><b>G</b><b>L</b><b class="on">M</b><b>P</b><b>S</b><b>Y</b><b>#</b>
         </div>
+        <div class="bubble">M</div>
       </div>
-      <div class="title">全アプリ（右端バーで A〜Z ジャンプ）</div>
+      <div class="label" style="margin-top:6px">右端バーを指でドラッグ → 大きく表示されて頭出し</div>
     </div>
   </div>
-  <div class="label">全アプリ画面</div>
+  <div class="label">全アプリ（A〜Z ドラッグ選択）</div>
   </div>
 
 </body>

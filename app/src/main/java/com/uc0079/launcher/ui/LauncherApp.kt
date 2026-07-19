@@ -365,6 +365,9 @@ private fun AllUnitsButton(onOpenAll: () -> Unit) {
 
 private data class ListRow(val header: Char?, val app: AppInfo?)
 
+/** Header marker for the favorites block pinned above A–Z. */
+private const val FAV_HEADER = '\u2605' // ★
+
 @Composable
 private fun AllAppsScreen(vm: LauncherViewModel, onClose: () -> Unit) {
     var query by remember { mutableStateOf("") }
@@ -372,21 +375,29 @@ private fun AllAppsScreen(vm: LauncherViewModel, onClose: () -> Unit) {
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
 
+    val favorites = vm.favoriteApps
+
     val filtered = remember(vm.apps, query) {
         if (query.isBlank()) vm.apps
         else vm.apps.filter { it.label.contains(query.trim(), ignoreCase = true) }
     }
 
-    val rows = remember(filtered, query) {
+    val rows = remember(filtered, query, favorites) {
         if (query.isNotBlank()) {
             filtered.map { ListRow(null, it) }
         } else {
+            val favInList = favorites.filter { fav -> filtered.any { it.packageName == fav.packageName } }
             val grouped = LinkedHashMap<Char, MutableList<AppInfo>>()
             filtered.forEach { app ->
                 val c = firstLetter(app.label)
                 grouped.getOrPut(c) { mutableListOf() }.add(app)
             }
             buildList {
+                // ★ Favorites pinned at the top of A–Z
+                if (favInList.isNotEmpty()) {
+                    add(ListRow(FAV_HEADER, null))
+                    favInList.forEach { add(ListRow(null, it)) }
+                }
                 grouped.forEach { (letter, list) ->
                     add(ListRow(letter, null))
                     list.forEach { add(ListRow(null, it)) }
@@ -424,14 +435,25 @@ private fun AllAppsScreen(vm: LauncherViewModel, onClose: () -> Unit) {
                     items(rows.size) { i ->
                         val row = rows[i]
                         if (row.header != null) {
-                            Text(
-                                text = row.header.toString(),
-                                color = G.Cyan,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.Monospace,
-                                modifier = Modifier.padding(start = 6.dp, top = 14.dp, bottom = 4.dp)
-                            )
+                            if (row.header == FAV_HEADER) {
+                                Text(
+                                    text = "\u2605  FAVORITES / \u304A\u6C17\u306B\u5165\u308A",
+                                    color = G.Yellow,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Monospace,
+                                    modifier = Modifier.padding(start = 6.dp, top = 10.dp, bottom = 4.dp)
+                                )
+                            } else {
+                                Text(
+                                    text = row.header.toString(),
+                                    color = G.Cyan,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Monospace,
+                                    modifier = Modifier.padding(start = 6.dp, top = 14.dp, bottom = 4.dp)
+                                )
+                            }
                         } else if (row.app != null) {
                             val app = row.app
                             AppRow(
@@ -468,13 +490,16 @@ private fun AllAppsScreen(vm: LauncherViewModel, onClose: () -> Unit) {
                         .align(Alignment.CenterEnd)
                         .padding(end = 42.dp)
                         .size(78.dp)
-                        .hudFrame(fill = G.PanelStrong, bracket = G.Cyan),
+                        .hudFrame(
+                            fill = G.PanelStrong,
+                            bracket = if (c == FAV_HEADER) G.Yellow else G.Cyan
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = c.toString(),
-                        color = G.White,
-                        fontSize = 42.sp,
+                        color = if (c == FAV_HEADER) G.Yellow else G.White,
+                        fontSize = if (c == FAV_HEADER) 36.sp else 42.sp,
                         fontWeight = FontWeight.Bold,
                         fontFamily = FontFamily.Monospace
                     )
@@ -579,11 +604,15 @@ private fun AlphabetScroller(
     ) {
         letters.forEach { c ->
             val on = c == activeLetter
+            val isFav = c == FAV_HEADER
             Text(
                 text = c.toString(),
-                color = if (on) G.Yellow else G.Cyan,
+                color = when {
+                    on || isFav -> G.Yellow
+                    else -> G.Cyan
+                },
                 fontSize = if (on) 12.sp else 10.sp,
-                fontWeight = if (on) FontWeight.Bold else FontWeight.Normal,
+                fontWeight = if (on || isFav) FontWeight.Bold else FontWeight.Normal,
                 fontFamily = FontFamily.Monospace
             )
         }
