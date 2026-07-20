@@ -1111,8 +1111,6 @@ private fun FolderScreen(
                         currentFolder = folder,
                         onLaunch = { vm.launchApp(app.packageName) },
                         onToggleFavorite = { vm.toggleFavorite(app.packageName) },
-                        onInfo = { vm.openAppInfo(app.packageName) },
-                        onUninstall = { vm.uninstall(app.packageName) },
                         onAddToFolder = { id -> vm.addToFolder(id, app.packageName) },
                         onCreateFolderWithApp = { name -> vm.createFolder(name, app.packageName) },
                         onRemoveFromFolder = { id -> vm.removeFromFolder(id, app.packageName) },
