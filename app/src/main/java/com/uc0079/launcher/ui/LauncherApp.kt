@@ -186,17 +186,40 @@ private fun HomeScreen(
                 .verticalScroll(scroll)
         ) {
             Spacer(Modifier.height(16.dp))
-            SectionLabel("WIDGETS / ウィジェット")
+            SectionLabel(
+                text = "WIDGETS / ウィジェット",
+                onAdd = { widgets.pickWidget() }
+            )
             Spacer(Modifier.height(8.dp))
+            if (widgets.widgetIds.isEmpty()) {
+                Text(
+                    text = "なし — 右の ＋ で追加",
+                    color = G.Dim,
+                    fontSize = 12.sp,
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+            }
             widgets.widgetIds.forEach { id ->
                 WidgetFrame(widgets = widgets, id = id)
                 Spacer(Modifier.height(10.dp))
             }
-            AddWidgetButton { widgets.pickWidget() }
 
             Spacer(Modifier.height(22.dp))
-            SectionLabel("FOLDERS / フォルダ")
+            SectionLabel(
+                text = "FOLDERS / フォルダ",
+                onAdd = { createFolderOpen = true }
+            )
             Spacer(Modifier.height(6.dp))
+            if (folders.isEmpty()) {
+                Text(
+                    text = "なし — 右の ＋ で作成",
+                    color = G.Dim,
+                    fontSize = 12.sp,
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+            }
             folders.forEach { folder ->
                 FolderRow(
                     folder = folder,
@@ -206,7 +229,6 @@ private fun HomeScreen(
                     onDelete = { vm.deleteFolder(folder.id) }
                 )
             }
-            AddFolderButton { createFolderOpen = true }
 
             Spacer(Modifier.height(22.dp))
             SectionLabel("FAVORITE UNITS / お気に入り")
@@ -307,28 +329,6 @@ private fun WidgetFrame(widgets: WidgetHostController, id: Int) {
         ) {
             Text("\u2715", color = G.Red, fontSize = 12.sp, fontWeight = FontWeight.Bold)
         }
-    }
-}
-
-@Composable
-private fun AddWidgetButton(onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .hudFrame(fill = G.Panel, bracket = G.Cyan)
-            .clickable(onClick = onClick)
-            .padding(vertical = 11.dp),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = "\uFF0B  ADD WIDGET  /  ウィジェット追加",
-            color = G.White,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Bold,
-            fontFamily = FontFamily.Monospace,
-            letterSpacing = 1.sp
-        )
     }
 }
 
@@ -1022,29 +1022,6 @@ private fun FolderRow(
 }
 
 @Composable
-private fun AddFolderButton(onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 4.dp)
-            .hudFrame(fill = G.Panel, bracket = G.Cyan)
-            .clickable(onClick = onClick)
-            .padding(vertical = 11.dp),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = "\uFF0B  NEW FOLDER  /  \u30D5\u30A9\u30EB\u30C0\u4F5C\u6210",
-            color = G.White,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Bold,
-            fontFamily = FontFamily.Monospace,
-            letterSpacing = 1.sp
-        )
-    }
-}
-
-@Composable
 private fun FolderScreen(
     vm: LauncherViewModel,
     folderId: String,
@@ -1265,8 +1242,11 @@ private fun firstLetter(label: String): Char {
 }
 
 @Composable
-private fun SectionLabel(text: String) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
+private fun SectionLabel(text: String, onAdd: (() -> Unit)? = null) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth()
+    ) {
         Box(
             Modifier
                 .size(width = 14.dp, height = 10.dp)
@@ -1281,6 +1261,20 @@ private fun SectionLabel(text: String) {
             fontFamily = FontFamily.Monospace,
             letterSpacing = 1.sp
         )
+        if (onAdd != null) {
+            Spacer(Modifier.weight(1f))
+            Text(
+                text = "\uFF0B",
+                color = G.Cyan,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace,
+                modifier = Modifier
+                    .size(36.dp)
+                    .clickable(onClick = onAdd)
+                    .padding(6.dp)
+            )
+        }
     }
 }
 

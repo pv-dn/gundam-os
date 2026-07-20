@@ -38,18 +38,30 @@ import com.uc0079.launcher.UpdateChecker
 /** Opens the system uninstall screen; falls back to app info if blocked. */
 fun Context.openUninstall(packageName: String) {
     val pkgUri = Uri.parse("package:$packageName")
-    val delete = Intent(Intent.ACTION_DELETE, pkgUri).apply {
-        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    fun launch(intent: Intent): Boolean {
+        // Activity context: avoid NEW_TASK (some OEMs drop the uninstall UI).
+        // Application context: NEW_TASK is required.
+        if (this !is android.app.Activity) {
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        return runCatching { startActivity(intent) }.isSuccess
     }
-    if (runCatching { startActivity(delete) }.isSuccess) return
+
+    val delete = Intent(Intent.ACTION_DELETE).apply {
+        data = pkgUri
+        addCategory(Intent.CATEGORY_DEFAULT)
+    }
+    if (launch(delete)) return
 
     @Suppress("DEPRECATION")
-    val legacy = Intent(Intent.ACTION_UNINSTALL_PACKAGE, pkgUri).apply {
-        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    val legacy = Intent(Intent.ACTION_UNINSTALL_PACKAGE).apply {
+        data = pkgUri
+        addCategory(Intent.CATEGORY_DEFAULT)
         putExtra(Intent.EXTRA_RETURN_RESULT, true)
     }
-    if (runCatching { startActivity(legacy) }.isSuccess) return
+    if (launch(legacy)) return
 
+    // Last resort: app info screen (user can tap Uninstall there).
     openAppInfo(packageName)
 }
 
@@ -88,74 +100,75 @@ fun AppActionSheet(
     onRemoveFromFolder: () -> Unit,
 ) {
     val context = LocalContext.current
+    // Single dialog only — nested AlertDialogs break uninstall on some OEMs.
     var confirmUninstall by remember { mutableStateOf(false) }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = G.PanelStrong,
-        title = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Image(
-                    bitmap = app.icon,
-                    contentDescription = null,
-                    modifier = Modifier.size(36.dp)
-                )
-                Spacer(Modifier.width(12.dp))
-                Text(
-                    text = app.label,
-                    color = G.White,
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        },
-        text = {
-            Column {
-                ActionLine("\u25B6  起動", G.White) {
-                    onDismiss()
-                    onLaunch()
+    if (!confirmUninstall) {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            containerColor = G.PanelStrong,
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Image(
+                        bitmap = app.icon,
+                        contentDescription = null,
+                        modifier = Modifier.size(36.dp)
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        text = app.label,
+                        color = G.White,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
-                ActionLine(
-                    if (isFavorite) "\u2605  お気に入りから外す" else "\u2605  お気に入りに追加",
-                    if (isFavorite) G.Yellow else G.White
-                ) {
-                    onDismiss()
-                    onToggleFavorite()
-                }
-                ActionLine("\u25A3  フォルダにしまう", G.White) {
-                    onDismiss()
-                    onAddToFolder()
-                }
-                if (currentFolder != null) {
+            },
+            text = {
+                Column {
+                    ActionLine("\u25B6  起動", G.White) {
+                        onDismiss()
+                        onLaunch()
+                    }
                     ActionLine(
-                        "\u25A3  フォルダから出す (${currentFolder.name})",
-                        G.Cyan
+                        if (isFavorite) "\u2605  お気に入りから外す" else "\u2605  お気に入りに追加",
+                        if (isFavorite) G.Yellow else G.White
                     ) {
                         onDismiss()
-                        onRemoveFromFolder()
+                        onToggleFavorite()
+                    }
+                    ActionLine("\u25A3  フォルダにしまう", G.White) {
+                        onDismiss()
+                        onAddToFolder()
+                    }
+                    if (currentFolder != null) {
+                        ActionLine(
+                            "\u25A3  フォルダから出す (${currentFolder.name})",
+                            G.Cyan
+                        ) {
+                            onDismiss()
+                            onRemoveFromFolder()
+                        }
+                    }
+                    ActionLine("\u2139  アプリ情報", G.White) {
+                        onDismiss()
+                        context.openAppInfo(app.packageName)
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    ActionLine("\u2715  アンインストール", G.Red) {
+                        confirmUninstall = true
                     }
                 }
-                ActionLine("\u2139  アプリ情報", G.White) {
-                    onDismiss()
-                    context.openAppInfo(app.packageName)
-                }
-                Spacer(Modifier.height(8.dp))
-                ActionLine("\u2715  アンインストール", G.Red) {
-                    confirmUninstall = true
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = onDismiss) {
+                    Text("閉じる", color = G.Dim, fontFamily = FontFamily.Monospace)
                 }
             }
-        },
-        confirmButton = {},
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("閉じる", color = G.Dim, fontFamily = FontFamily.Monospace)
-            }
-        }
-    )
-
-    if (confirmUninstall) {
+        )
+    } else {
         AlertDialog(
             onDismissRequest = { confirmUninstall = false },
             containerColor = G.PanelStrong,
@@ -171,9 +184,12 @@ fun AppActionSheet(
             },
             confirmButton = {
                 TextButton(onClick = {
-                    confirmUninstall = false
+                    val pkg = app.packageName
                     onDismiss()
-                    context.openUninstall(app.packageName)
+                    // Post after dialog teardown so the system UI can take focus.
+                    android.os.Handler(android.os.Looper.getMainLooper()).post {
+                        context.openUninstall(pkg)
+                    }
                 }) {
                     Text("削除する", color = G.Red, fontWeight = FontWeight.Bold)
                 }
@@ -295,6 +311,7 @@ fun HelpSheet(onDismiss: () -> Unit, onOpenLauncherSettings: () -> Unit) {
                 HelpLine("タップ … アプリを起動")
                 HelpLine("右の ⋮ … お気に入り・フォルダ・アンインストール")
                 HelpLine("長押し … ⋮ と同じメニュー")
+                HelpLine("セクション右の ＋ … ウィジェット／フォルダ追加")
                 HelpLine("▲ ALL UNITS … 全アプリ一覧")
                 HelpLine("右端 A〜Z … 指でなぞってジャンプ")
                 Spacer(Modifier.height(12.dp))
