@@ -58,7 +58,7 @@ object IndexLetter {
     }
 
     private fun toHiragana(c: Char): Char = when (c) {
-        in 'ァ'..'ン' -> (c - 'ァ' + 'ぁ')
+        in 'ァ'..'ン' -> ('ぁ'.code + (c - 'ァ')).toChar()
         'ヴ' -> 'ゔ'
         'ヵ' -> 'か'
         'ヶ' -> 'け'
