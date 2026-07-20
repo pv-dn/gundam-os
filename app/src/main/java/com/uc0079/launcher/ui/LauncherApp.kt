@@ -62,6 +62,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.uc0079.launcher.AppFolder
 import com.uc0079.launcher.AppInfo
 import com.uc0079.launcher.LauncherViewModel
+import com.uc0079.launcher.UpdateChecker
 import com.uc0079.launcher.WidgetHostController
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -76,6 +77,20 @@ fun LauncherApp(vm: LauncherViewModel, widgets: WidgetHostController) {
     GundamTheme {
         var screen by remember { mutableStateOf(Screen.HOME) }
         var openFolderId by remember { mutableStateOf<String?>(null) }
+        val context = LocalContext.current
+        val updateInfo = vm.updateInfo
+
+        if (updateInfo != null) {
+            UpdateDialog(
+                info = updateInfo,
+                onDismiss = { vm.dismissUpdate() },
+                onDownload = { apkUrl ->
+                    UpdateChecker.download(context, apkUrl) { fileUri ->
+                        UpdateChecker.installApk(context, fileUri)
+                    }
+                }
+            )
+        }
 
         ScrimBackground(Modifier.fillMaxSize()) {
             when (screen) {

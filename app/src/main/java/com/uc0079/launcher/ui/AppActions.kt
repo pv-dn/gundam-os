@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.uc0079.launcher.AppFolder
 import com.uc0079.launcher.AppInfo
+import com.uc0079.launcher.UpdateChecker
 
 /** Opens the system uninstall screen; falls back to app info if blocked. */
 fun Context.openUninstall(packageName: String) {
@@ -320,5 +321,54 @@ private fun HelpLine(text: String) {
         fontSize = 14.sp,
         fontFamily = FontFamily.Monospace,
         modifier = Modifier.padding(vertical = 4.dp)
+    )
+}
+
+// ─── Update dialog ─────────────────────────────────────────────────────────
+
+@Composable
+fun UpdateDialog(
+    info: UpdateChecker.UpdateInfo,
+    onDismiss: () -> Unit,
+    onDownload: (apkUrl: String) -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = G.PanelStrong,
+        title = {
+            Text(
+                "UPDATE AVAILABLE",
+                color = G.Cyan,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace
+            )
+        },
+        text = {
+            Column {
+                Text(
+                    info.message,
+                    color = G.White,
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 16.sp
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "新しいバージョンが利用可能です。\nダウンロードしてインストールしますか？",
+                    color = G.Dim,
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 13.sp
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onDownload(info.apkUrl); onDismiss() }) {
+                Text("ダウンロード", color = G.Cyan, fontFamily = FontFamily.Monospace)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("後で", color = G.Dim, fontFamily = FontFamily.Monospace)
+            }
+        }
     )
 }

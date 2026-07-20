@@ -11,6 +11,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.UUID
@@ -31,8 +32,31 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     var loading by mutableStateOf(true)
         private set
 
+    /** Non-null when a new version is available for download. */
+    var updateInfo by mutableStateOf<UpdateChecker.UpdateInfo?>(null)
+        private set
+
     init {
         refresh()
+        checkForUpdate()
+    }
+
+    fun checkForUpdate() {
+        viewModelScope.launch {
+            delay(3_000) // wait a bit after launch to avoid startup jank
+            val app = getApplication<Application>()
+            val versionCode = runCatching {
+                app.packageManager
+                    .getPackageInfo(app.packageName, 0)
+                    .longVersionCode.toInt()
+            }.getOrDefault(1)
+            val info = UpdateChecker.check(versionCode) ?: return@launch
+            if (info.available) updateInfo = info
+        }
+    }
+
+    fun dismissUpdate() {
+        updateInfo = null
     }
 
     fun refresh() {
