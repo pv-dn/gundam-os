@@ -152,6 +152,13 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         saveFolders()
     }
 
+    fun openHomeAppSettings() {
+        val intent = Intent(Settings.ACTION_HOME_SETTINGS).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        runCatching { getApplication<Application>().startActivity(intent) }
+    }
+
     fun launchApp(pkg: String) {
         val pm = getApplication<Application>().packageManager
         val intent = pm.getLaunchIntentForPackage(pkg) ?: return

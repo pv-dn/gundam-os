@@ -35,8 +35,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -144,6 +142,7 @@ private fun HomeScreen(
     val scroll = rememberScrollState()
     var createFolderOpen by remember { mutableStateOf(false) }
     var renameFolder by remember { mutableStateOf<AppFolder?>(null) }
+    var helpOpen by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -152,7 +151,19 @@ private fun HomeScreen(
             .navigationBarsPadding()
             .padding(horizontal = 18.dp)
     ) {
-        HudHeader(unitCount = vm.apps.size, onSwipeUp = onOpenAll)
+        HudHeader(
+            unitCount = vm.apps.size,
+            onSwipeUp = onOpenAll,
+            onHelp = { helpOpen = true }
+        )
+
+        Text(
+            text = "タップ＝起動　　右の ⋮ ＝ 設定・アンインストール",
+            color = G.Dim,
+            fontSize = 11.sp,
+            fontFamily = FontFamily.Monospace,
+            modifier = Modifier.padding(top = 6.dp, bottom = 2.dp)
+        )
 
         Column(
             Modifier
@@ -187,7 +198,7 @@ private fun HomeScreen(
             Spacer(Modifier.height(6.dp))
             if (favorites.isEmpty()) {
                 Text(
-                    text = "登録なし — 下の [ALL UNITS] を開き、\nアプリを長押しして「お気に入りに追加」してください。",
+                    text = "登録なし — [ALL UNITS] を開き、\nアプリ右の ⋮ から「お気に入りに追加」",
                     color = G.Dim,
                     fontSize = 13.sp,
                     fontFamily = FontFamily.Monospace,
@@ -202,8 +213,6 @@ private fun HomeScreen(
                         currentFolder = vm.folderOf(app.packageName),
                         onLaunch = { vm.launchApp(app.packageName) },
                         onToggleFavorite = { vm.toggleFavorite(app.packageName) },
-                        onInfo = { vm.openAppInfo(app.packageName) },
-                        onUninstall = { vm.uninstall(app.packageName) },
                         onAddToFolder = { folderId -> vm.addToFolder(folderId, app.packageName) },
                         onCreateFolderWithApp = { name ->
                             vm.createFolder(name, app.packageName)
@@ -243,6 +252,12 @@ private fun HomeScreen(
                 vm.renameFolder(folder.id, name)
                 renameFolder = null
             }
+        )
+    }
+    if (helpOpen) {
+        HelpSheet(
+            onDismiss = { helpOpen = false },
+            onOpenLauncherSettings = { vm.openHomeAppSettings() }
         )
     }
 }
@@ -305,7 +320,7 @@ private fun AddWidgetButton(onClick: () -> Unit) {
 private val Green = Color(0xFF15C26B)
 
 @Composable
-private fun HudHeader(unitCount: Int, onSwipeUp: () -> Unit) {
+private fun HudHeader(unitCount: Int, onSwipeUp: () -> Unit, onHelp: () -> Unit) {
     val (time, date) = rememberClock()
     val battery = rememberBatteryPercent()
 
@@ -335,6 +350,18 @@ private fun HudHeader(unitCount: Int, onSwipeUp: () -> Unit) {
                 letterSpacing = 1.sp
             )
             Spacer(Modifier.weight(1f))
+            Text(
+                text = "?",
+                color = G.Cyan,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace,
+                modifier = Modifier
+                    .size(32.dp)
+                    .clickable(onClick = onHelp)
+                    .padding(4.dp),
+            )
+            Spacer(Modifier.width(6.dp))
             Text(
                 text = if (battery >= 0) "PWR $battery%" else "PWR --",
                 color = if (battery in 0..15) G.Red else G.Yellow,
@@ -597,8 +624,6 @@ private fun AllAppsScreen(
                                     currentFolder = vm.folderOf(app.packageName),
                                     onLaunch = { vm.launchApp(app.packageName) },
                                     onToggleFavorite = { vm.toggleFavorite(app.packageName) },
-                                    onInfo = { vm.openAppInfo(app.packageName) },
-                                    onUninstall = { vm.uninstall(app.packageName) },
                                     onAddToFolder = { folderId ->
                                         vm.addToFolder(folderId, app.packageName)
                                     },
@@ -790,105 +815,76 @@ private fun AppRow(
     currentFolder: AppFolder?,
     onLaunch: () -> Unit,
     onToggleFavorite: () -> Unit,
-    onInfo: () -> Unit,
-    onUninstall: () -> Unit,
     onAddToFolder: (String) -> Unit,
     onCreateFolderWithApp: (String) -> Unit,
     onRemoveFromFolder: (String) -> Unit,
     labelSize: androidx.compose.ui.unit.TextUnit,
     iconSize: androidx.compose.ui.unit.Dp,
 ) {
-    var menuOpen by remember { mutableStateOf(false) }
+    var sheetOpen by remember { mutableStateOf(false) }
     var pickFolderOpen by remember { mutableStateOf(false) }
     var createNameOpen by remember { mutableStateOf(false) }
 
-    Box {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .combinedClickable(
-                    onClick = onLaunch,
-                    onLongClick = { menuOpen = true }
-                )
-                .padding(vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Image(
-                bitmap = app.icon,
-                contentDescription = app.label,
-                modifier = Modifier.size(iconSize)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .combinedClickable(
+                onClick = onLaunch,
+                onLongClick = { sheetOpen = true }
             )
-            Spacer(Modifier.width(14.dp))
-            Column(Modifier.weight(1f)) {
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Image(
+            bitmap = app.icon,
+            contentDescription = app.label,
+            modifier = Modifier.size(iconSize)
+        )
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = app.label,
+                color = G.White,
+                fontSize = labelSize,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (currentFolder != null) {
                 Text(
-                    text = app.label,
-                    color = G.White,
-                    fontSize = labelSize,
-                    fontWeight = FontWeight.Medium,
+                    text = "\u25A3 ${currentFolder.name}",
+                    color = G.Dim,
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                if (currentFolder != null) {
-                    Text(
-                        text = "\u25A3 ${currentFolder.name}",
-                        color = G.Dim,
-                        fontSize = 11.sp,
-                        fontFamily = FontFamily.Monospace,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
-            if (isFavorite) {
-                Text(text = "\u2605", color = G.Yellow, fontSize = 12.sp)
             }
         }
+        if (isFavorite) {
+            Text(text = "\u2605", color = G.Yellow, fontSize = 12.sp)
+            Spacer(Modifier.width(4.dp))
+        }
+        MenuDotsButton(onClick = { sheetOpen = true })
+    }
 
-        DropdownMenu(
-            expanded = menuOpen,
-            onDismissRequest = { menuOpen = false },
-            modifier = Modifier.background(G.PanelStrong)
-        ) {
-            DropdownMenuItem(
-                text = {
-                    Text(
-                        if (isFavorite) "お気に入りから削除" else "お気に入りに追加",
-                        color = G.White,
-                        fontFamily = FontFamily.Monospace
-                    )
-                },
-                onClick = { menuOpen = false; onToggleFavorite() }
-            )
-            DropdownMenuItem(
-                text = {
-                    Text("フォルダにしまう…", color = G.White, fontFamily = FontFamily.Monospace)
-                },
-                onClick = { menuOpen = false; pickFolderOpen = true }
-            )
-            if (currentFolder != null) {
-                DropdownMenuItem(
-                    text = {
-                        Text(
-                            "フォルダから出す (${currentFolder.name})",
-                            color = G.Cyan,
-                            fontFamily = FontFamily.Monospace
-                        )
-                    },
-                    onClick = {
-                        menuOpen = false
-                        onRemoveFromFolder(currentFolder.id)
-                    }
-                )
+    if (sheetOpen) {
+        AppActionSheet(
+            app = app,
+            isFavorite = isFavorite,
+            folders = folders,
+            currentFolder = currentFolder,
+            onDismiss = { sheetOpen = false },
+            onLaunch = onLaunch,
+            onToggleFavorite = onToggleFavorite,
+            onAddToFolder = {
+                sheetOpen = false
+                pickFolderOpen = true
+            },
+            onRemoveFromFolder = {
+                currentFolder?.let { onRemoveFromFolder(it.id) }
             }
-            DropdownMenuItem(
-                text = { Text("アプリ情報", color = G.White, fontFamily = FontFamily.Monospace) },
-                onClick = { menuOpen = false; onInfo() }
-            )
-            DropdownMenuItem(
-                text = { Text("アンインストール", color = G.Red, fontFamily = FontFamily.Monospace) },
-                onClick = { menuOpen = false; onUninstall() }
-            )
-        }
+        )
     }
 
     if (pickFolderOpen) {
@@ -927,94 +923,86 @@ private fun FolderRow(
     onRename: () -> Unit,
     onDelete: () -> Unit
 ) {
-    var menuOpen by remember { mutableStateOf(false) }
+    var sheetOpen by remember { mutableStateOf(false) }
 
-    Box {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .combinedClickable(
-                    onClick = onOpen,
-                    onLongClick = { menuOpen = true }
-                )
-                .padding(vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .combinedClickable(
+                onClick = onOpen,
+                onLongClick = { sheetOpen = true }
+            )
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            Modifier
+                .size(34.dp)
+                .hudFrame(fill = G.PanelStrong, bracket = G.Cyan)
+                .padding(3.dp)
         ) {
-            Box(
-                Modifier
-                    .size(34.dp)
-                    .hudFrame(fill = G.PanelStrong, bracket = G.Cyan)
-                    .padding(3.dp)
-            ) {
-                when {
-                    previewIcons.isEmpty() -> Text(
-                        "\u25A3",
-                        color = G.Cyan,
-                        fontSize = 14.sp,
-                        modifier = Modifier.align(Alignment.Center)
-                    )
-                    previewIcons.size == 1 -> Image(
-                        bitmap = previewIcons[0],
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                    else -> {
-                        // 2x2 mini preview
-                        Column(Modifier.fillMaxSize()) {
-                            Row(Modifier.weight(1f)) {
-                                previewIcons.getOrNull(0)?.let {
-                                    Image(it, null, Modifier.weight(1f).fillMaxHeight().padding(0.5.dp))
-                                } ?: Spacer(Modifier.weight(1f))
-                                previewIcons.getOrNull(1)?.let {
-                                    Image(it, null, Modifier.weight(1f).fillMaxHeight().padding(0.5.dp))
-                                } ?: Spacer(Modifier.weight(1f))
-                            }
-                            Row(Modifier.weight(1f)) {
-                                previewIcons.getOrNull(2)?.let {
-                                    Image(it, null, Modifier.weight(1f).fillMaxHeight().padding(0.5.dp))
-                                } ?: Spacer(Modifier.weight(1f))
-                                previewIcons.getOrNull(3)?.let {
-                                    Image(it, null, Modifier.weight(1f).fillMaxHeight().padding(0.5.dp))
-                                } ?: Spacer(Modifier.weight(1f))
-                            }
+            when {
+                previewIcons.isEmpty() -> Text(
+                    "\u25A3",
+                    color = G.Cyan,
+                    fontSize = 14.sp,
+                    modifier = Modifier.align(Alignment.Center)
+                )
+                previewIcons.size == 1 -> Image(
+                    bitmap = previewIcons[0],
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize()
+                )
+                else -> {
+                    Column(Modifier.fillMaxSize()) {
+                        Row(Modifier.weight(1f)) {
+                            previewIcons.getOrNull(0)?.let {
+                                Image(it, null, Modifier.weight(1f).fillMaxHeight().padding(0.5.dp))
+                            } ?: Spacer(Modifier.weight(1f))
+                            previewIcons.getOrNull(1)?.let {
+                                Image(it, null, Modifier.weight(1f).fillMaxHeight().padding(0.5.dp))
+                            } ?: Spacer(Modifier.weight(1f))
+                        }
+                        Row(Modifier.weight(1f)) {
+                            previewIcons.getOrNull(2)?.let {
+                                Image(it, null, Modifier.weight(1f).fillMaxHeight().padding(0.5.dp))
+                            } ?: Spacer(Modifier.weight(1f))
+                            previewIcons.getOrNull(3)?.let {
+                                Image(it, null, Modifier.weight(1f).fillMaxHeight().padding(0.5.dp))
+                            } ?: Spacer(Modifier.weight(1f))
                         }
                     }
                 }
             }
-            Spacer(Modifier.width(14.dp))
-            Column(Modifier.weight(1f)) {
-                Text(
-                    text = folder.name,
-                    color = G.White,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = "${folder.packageNames.size} apps",
-                    color = G.Dim,
-                    fontSize = 11.sp,
-                    fontFamily = FontFamily.Monospace
-                )
-            }
-            Text("\u25B8", color = G.Cyan, fontSize = 16.sp)
         }
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = folder.name,
+                color = G.White,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = "${folder.packageNames.size} apps",
+                color = G.Dim,
+                fontSize = 11.sp,
+                fontFamily = FontFamily.Monospace
+            )
+        }
+        MenuDotsButton(onClick = { sheetOpen = true })
+    }
 
-        DropdownMenu(
-            expanded = menuOpen,
-            onDismissRequest = { menuOpen = false },
-            modifier = Modifier.background(G.PanelStrong)
-        ) {
-            DropdownMenuItem(
-                text = { Text("名前を変更", color = G.White, fontFamily = FontFamily.Monospace) },
-                onClick = { menuOpen = false; onRename() }
-            )
-            DropdownMenuItem(
-                text = { Text("フォルダを削除", color = G.Red, fontFamily = FontFamily.Monospace) },
-                onClick = { menuOpen = false; onDelete() }
-            )
-        }
+    if (sheetOpen) {
+        FolderActionSheet(
+            folder = folder,
+            onDismiss = { sheetOpen = false },
+            onOpen = onOpen,
+            onRename = onRename,
+            onDelete = onDelete
+        )
     }
 }
 
@@ -1106,7 +1094,7 @@ private fun FolderScreen(
 
         if (apps.isEmpty()) {
             Text(
-                text = "空です — 全アプリでアプリを長押しし、\n「フォルダにしまう」で入れてください。",
+                text = "空です — 全アプリで ⋮ を押し、\n「フォルダにしまう」で入れてください。",
                 color = G.Dim,
                 fontSize = 13.sp,
                 fontFamily = FontFamily.Monospace,
