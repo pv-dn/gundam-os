@@ -50,5 +50,8 @@ jobs:
         with:
           tag_name: v${{ steps.ver.outputs.code }}
           name: "Z GUNDAM OS v${{ steps.ver.outputs.code }}"
-          body: "最新ビルド。下の gundam-os.apk をスマホでダウンロードしてインストールしてください。"
+          body: |
+            最新ビルド。下の gundam-os.apk をスマホのブラウザでダウンロードしてインストールしてください。
+
+            ※ v4 より前の版が入っている場合は、一度アンインストールしてから入れてください（署名を固定したため、この1回だけ必要です）。
           files: gundam-os.apk

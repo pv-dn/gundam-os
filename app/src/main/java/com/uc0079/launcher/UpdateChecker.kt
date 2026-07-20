@@ -7,27 +7,18 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.net.Uri
 import android.os.Environment
+import androidx.core.content.FileProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 
 /**
  * Checks GitHub Releases for a newer versionCode and downloads the APK.
  *
- * GitHub release convention used here:
- *   tag: "latest" (floating tag), asset: "gundam-os.apk"
- *   The release body or a dedicated asset is NOT used for versionCode; instead
- *   we embed the current versionCode into the release tag name via CI
- *   (e.g. "v2") so UpdateChecker can compare purely by tag sequence.
- *
- *   For this first implementation we use a simpler heuristic: fetch the
- *   releases/latest redirect and compare the resolved tag name against the
- *   tag of the version already installed.  If the repo's latest tag is newer
- *   than the installed one (lexicographic after stripping "v"), an update is
- *   available.  The CI workflow is updated to push a versioned tag in addition
- *   to "latest" so this works correctly.
+ * Release tag convention: "v{versionCode}" (e.g. "v4").
  */
 object UpdateChecker {
 
@@ -57,7 +48,7 @@ object UpdateChecker {
                 val body = conn.inputStream.bufferedReader().readText()
                 conn.disconnect()
                 val json = JSONObject(body)
-                val tag = json.getString("tag_name")          // e.g. "v2"
+                val tag = json.getString("tag_name")
                 val apkUrl = json.getJSONArray("assets")
                     .let { arr ->
                         (0 until arr.length()).mapNotNull { arr.getJSONObject(it) }
@@ -65,7 +56,6 @@ object UpdateChecker {
                             ?.getString("browser_download_url")
                     } ?: return@runCatching null
 
-                // Parse version number from tag (e.g. "v2" → 2)
                 val remoteCode = tag.trimStart('v').toIntOrNull() ?: 1
                 UpdateInfo(
                     available = remoteCode > currentVersionCode,
@@ -76,10 +66,6 @@ object UpdateChecker {
             }.getOrNull()
         }
 
-    /**
-     * Enqueues the APK download via DownloadManager and calls [onComplete]
-     * with the file Uri when finished so MainActivity can trigger install.
-     */
     fun download(
         context: Context,
         apkUrl: String,
@@ -113,8 +99,8 @@ object UpdateChecker {
                     if (statusCol >= 0 && cursor.getInt(statusCol) ==
                         DownloadManager.STATUS_SUCCESSFUL && uriCol >= 0
                     ) {
-                        val uri = Uri.parse(cursor.getString(uriCol))
-                        onComplete(uri)
+                        val local = Uri.parse(cursor.getString(uriCol))
+                        onComplete(toInstallUri(context, local))
                     }
                 }
                 cursor.close()
@@ -128,11 +114,24 @@ object UpdateChecker {
         return downloadId
     }
 
+    /** Convert file:// download URI to a shareable content:// URI via FileProvider. */
+    private fun toInstallUri(context: Context, local: Uri): Uri {
+        if (local.scheme == "content") return local
+        val path = local.path ?: return local
+        val file = File(path)
+        return FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            file
+        )
+    }
+
     /** Triggers the system install dialog for a downloaded APK Uri. */
     fun installApk(context: Context, apkUri: Uri) {
         val intent = Intent(Intent.ACTION_VIEW).apply {
             setDataAndType(apkUri, "application/vnd.android.package-archive")
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         runCatching { context.startActivity(intent) }
     }

@@ -12,13 +12,27 @@ android {
         applicationId = "com.uc0079.launcher"
         minSdk = 26
         targetSdk = 34
-        versionCode = 3
-        versionName = "1.2"
+        versionCode = 4
+        versionName = "1.3"
+    }
+
+    // Same key every CI build — required for in-place updates on the phone.
+    signingConfigs {
+        create("shared") {
+            storeFile = rootProject.file("keystore/gundam.jks")
+            storePassword = "gundam-os-2024"
+            keyAlias = "gundam"
+            keyPassword = "gundam-os-2024"
+        }
     }
 
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("shared")
+        }
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("shared")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
