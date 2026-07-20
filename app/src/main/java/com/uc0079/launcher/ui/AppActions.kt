@@ -98,6 +98,8 @@ fun AppActionSheet(
     onToggleFavorite: () -> Unit,
     onAddToFolder: () -> Unit,
     onRemoveFromFolder: () -> Unit,
+    onMoveUp: (() -> Unit)? = null,
+    onMoveDown: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
     // Single dialog only — nested AlertDialogs break uninstall on some OEMs.
@@ -137,6 +139,18 @@ fun AppActionSheet(
                     ) {
                         onDismiss()
                         onToggleFavorite()
+                    }
+                    if (onMoveUp != null) {
+                        ActionLine("\u25B2  お気に入りで上へ", G.Cyan) {
+                            onDismiss()
+                            onMoveUp()
+                        }
+                    }
+                    if (onMoveDown != null) {
+                        ActionLine("\u25BC  お気に入りで下へ", G.Cyan) {
+                            onDismiss()
+                            onMoveDown()
+                        }
                     }
                     ActionLine("\u25A3  フォルダにしまう", G.White) {
                         onDismiss()
@@ -323,6 +337,7 @@ fun HelpSheet(
                 HelpLine("タップ … アプリを起動")
                 HelpLine("右の ⋮ … お気に入り・フォルダ・アンインストール")
                 HelpLine("長押し … ⋮ と同じメニュー")
+                HelpLine("お気に入りの ▲▼ … 順番を入れ替え")
                 HelpLine("セクション右の ＋ … ウィジェット／フォルダ追加")
                 HelpLine("ホームボタン … いつでもホーム画面へ")
                 HelpLine("▲ ALL UNITS … 全アプリ一覧")

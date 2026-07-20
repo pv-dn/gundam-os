@@ -183,7 +183,7 @@ private fun HomeScreen(
         )
 
         Text(
-            text = "タップ＝起動　　右の ⋮ ＝ 設定・アンインストール",
+            text = "タップ＝起動　　▲▼＝順番　　右の ⋮ ＝ 設定",
             color = G.Dim,
             fontSize = 11.sp,
             fontFamily = FontFamily.Monospace,
@@ -227,7 +227,7 @@ private fun HomeScreen(
                     modifier = Modifier.padding(top = 8.dp)
                 )
             } else {
-                favorites.forEach { app ->
+                favorites.forEachIndexed { index, app ->
                     AppRow(
                         app = app,
                         isFavorite = true,
@@ -242,6 +242,12 @@ private fun HomeScreen(
                         onRemoveFromFolder = { folderId ->
                             vm.removeFromFolder(folderId, app.packageName)
                         },
+                        onMoveUp = if (index > 0) {
+                            { vm.moveFavorite(app.packageName, -1) }
+                        } else null,
+                        onMoveDown = if (index < favorites.lastIndex) {
+                            { vm.moveFavorite(app.packageName, +1) }
+                        } else null,
                         labelSize = 22.sp,
                         iconSize = 34.dp
                     )
@@ -850,6 +856,8 @@ private fun AppRow(
     onRemoveFromFolder: (String) -> Unit,
     labelSize: androidx.compose.ui.unit.TextUnit,
     iconSize: androidx.compose.ui.unit.Dp,
+    onMoveUp: (() -> Unit)? = null,
+    onMoveDown: (() -> Unit)? = null,
 ) {
     var sheetOpen by remember { mutableStateOf(false) }
     var pickFolderOpen by remember { mutableStateOf(false) }
@@ -891,6 +899,37 @@ private fun AppRow(
                 )
             }
         }
+        if (onMoveUp != null || onMoveDown != null) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = "\u25B2",
+                    color = if (onMoveUp != null) G.Cyan else G.Dim.copy(alpha = 0.35f),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier
+                        .size(28.dp)
+                        .then(
+                            if (onMoveUp != null) Modifier.clickable(onClick = onMoveUp)
+                            else Modifier
+                        )
+                        .padding(2.dp)
+                )
+                Text(
+                    text = "\u25BC",
+                    color = if (onMoveDown != null) G.Cyan else G.Dim.copy(alpha = 0.35f),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier
+                        .size(28.dp)
+                        .then(
+                            if (onMoveDown != null) Modifier.clickable(onClick = onMoveDown)
+                            else Modifier
+                        )
+                        .padding(2.dp)
+                )
+            }
+            Spacer(Modifier.width(2.dp))
+        }
         if (isFavorite) {
             Text(text = "\u2605", color = G.Yellow, fontSize = 12.sp)
             Spacer(Modifier.width(4.dp))
@@ -913,7 +952,9 @@ private fun AppRow(
             },
             onRemoveFromFolder = {
                 currentFolder?.let { onRemoveFromFolder(it.id) }
-            }
+            },
+            onMoveUp = onMoveUp,
+            onMoveDown = onMoveDown,
         )
     }
 

@@ -121,6 +121,19 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         saveFavorites()
     }
 
+    /** Move a favorite up (delta=-1) or down (delta=+1). No-op at ends. */
+    fun moveFavorite(pkg: String, delta: Int) {
+        val i = favorites.indexOf(pkg)
+        if (i < 0) return
+        val j = (i + delta).coerceIn(0, favorites.lastIndex)
+        if (i == j) return
+        val mutable = favorites.toMutableList()
+        val item = mutable.removeAt(i)
+        mutable.add(j, item)
+        favorites = mutable
+        saveFavorites()
+    }
+
     fun createFolder(name: String, initialPkg: String? = null): AppFolder {
         val folder = AppFolder(
             id = UUID.randomUUID().toString(),
