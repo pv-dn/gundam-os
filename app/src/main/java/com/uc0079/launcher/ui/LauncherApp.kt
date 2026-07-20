@@ -61,6 +61,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.uc0079.launcher.AppFolder
 import com.uc0079.launcher.AppInfo
+import com.uc0079.launcher.IndexLetter
 import com.uc0079.launcher.LauncherViewModel
 import com.uc0079.launcher.UpdateChecker
 import com.uc0079.launcher.WidgetHostController
@@ -79,6 +80,15 @@ fun LauncherApp(vm: LauncherViewModel, widgets: WidgetHostController) {
         var openFolderId by remember { mutableStateOf<String?>(null) }
         val context = LocalContext.current
         val updateInfo = vm.updateInfo
+
+        // System Home button → back to home screen (from ALL / FOLDER).
+        val homePulse = vm.homePulse
+        LaunchedEffect(homePulse) {
+            if (homePulse > 0) {
+                openFolderId = null
+                screen = Screen.HOME
+            }
+        }
 
         if (updateInfo != null) {
             UpdateDialog(
@@ -539,13 +549,12 @@ private fun AllAppsScreen(
             val favInList = favorites.filter { fav ->
                 filtered.any { it.packageName == fav.packageName }
             }
-            // Apps stored in folders are hidden from A–Z (しまえる).
             val visible = filtered.filter { it.packageName !in shelved }
-            val grouped = LinkedHashMap<Char, MutableList<AppInfo>>()
-            visible.forEach { app ->
-                val c = firstLetter(app.label)
-                grouped.getOrPut(c) { mutableListOf() }.add(app)
-            }
+            val collator = java.text.Collator.getInstance(Locale.JAPAN)
+            val grouped = visible
+                .groupBy { IndexLetter.of(it.label) }
+                .toSortedMap(compareBy { ch -> if (ch == '#') Char.MAX_VALUE else ch })
+                .mapValues { (_, list) -> list.sortedWith(compareBy(collator) { it.label }) }
             buildList {
                 if (favInList.isNotEmpty()) {
                     add(ListRow(FAV_HEADER, null, null))
@@ -1235,11 +1244,6 @@ private fun FolderPickDialog(
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
 /* ------------------------------------------------------------------ */
-
-private fun firstLetter(label: String): Char {
-    val ch = label.trim().firstOrNull()?.uppercaseChar() ?: '#'
-    return if (ch in 'A'..'Z') ch else '#'
-}
 
 @Composable
 private fun SectionLabel(text: String, onAdd: (() -> Unit)? = null) {

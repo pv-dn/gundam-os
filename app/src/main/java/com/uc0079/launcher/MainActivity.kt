@@ -1,5 +1,6 @@
 package com.uc0079.launcher
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -18,6 +19,17 @@ class MainActivity : ComponentActivity() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
         setContent {
             LauncherApp(vm, widgets)
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        // Home button while already in the launcher (e.g. all-apps screen).
+        if (intent.hasCategory(Intent.CATEGORY_HOME) ||
+            intent.action == Intent.ACTION_MAIN
+        ) {
+            vm.onHomeIntent()
         }
     }
 

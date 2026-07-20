@@ -36,6 +36,17 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     var updateInfo by mutableStateOf<UpdateChecker.UpdateInfo?>(null)
         private set
 
+    /**
+     * Incremented when the system Home intent arrives while we're already open
+     * (e.g. user pressed Home on the all-apps screen). UI watches this to reset.
+     */
+    var homePulse by mutableStateOf(0)
+        private set
+
+    fun onHomeIntent() {
+        homePulse++
+    }
+
     init {
         refresh()
         checkForUpdate()

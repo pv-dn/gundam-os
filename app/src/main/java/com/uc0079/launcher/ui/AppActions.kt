@@ -312,8 +312,9 @@ fun HelpSheet(onDismiss: () -> Unit, onOpenLauncherSettings: () -> Unit) {
                 HelpLine("右の ⋮ … お気に入り・フォルダ・アンインストール")
                 HelpLine("長押し … ⋮ と同じメニュー")
                 HelpLine("セクション右の ＋ … ウィジェット／フォルダ追加")
+                HelpLine("ホームボタン … いつでもホーム画面へ")
                 HelpLine("▲ ALL UNITS … 全アプリ一覧")
-                HelpLine("右端 A〜Z … 指でなぞってジャンプ")
+                HelpLine("右端 A〜Z … かな／漢字もローマ字頭文字で分類")
                 Spacer(Modifier.height(12.dp))
                 ActionLine("\u2699  ホームアプリ（ランチャー）の変更", G.Cyan) {
                     onDismiss()
