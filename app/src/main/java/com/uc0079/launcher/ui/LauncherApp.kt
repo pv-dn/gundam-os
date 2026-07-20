@@ -302,9 +302,15 @@ private fun HomeScreen(
         )
     }
     if (helpOpen) {
+        val ctx = LocalContext.current
+        val ver = remember {
+            runCatching { "v${UpdateChecker.currentVersionCode(ctx)}" }.getOrDefault("?")
+        }
         HelpSheet(
             onDismiss = { helpOpen = false },
-            onOpenLauncherSettings = { vm.openHomeAppSettings() }
+            onOpenLauncherSettings = { vm.openHomeAppSettings() },
+            onCheckUpdate = { vm.checkForUpdate(force = true) },
+            versionLabel = ver,
         )
     }
 }

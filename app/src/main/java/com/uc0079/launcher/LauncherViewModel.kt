@@ -52,14 +52,12 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         checkForUpdate()
     }
 
-    fun checkForUpdate() {
+    fun checkForUpdate(force: Boolean = false) {
         viewModelScope.launch {
-            delay(3_000) // wait a bit after launch to avoid startup jank
+            if (!force) delay(2_000)
             val app = getApplication<Application>()
             val versionCode = runCatching {
-                app.packageManager
-                    .getPackageInfo(app.packageName, 0)
-                    .longVersionCode.toInt()
+                UpdateChecker.currentVersionCode(app)
             }.getOrDefault(1)
             val info = UpdateChecker.check(versionCode) ?: return@launch
             if (info.available) updateInfo = info

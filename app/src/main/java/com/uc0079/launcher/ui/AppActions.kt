@@ -299,7 +299,12 @@ fun FolderActionSheet(
 }
 
 @Composable
-fun HelpSheet(onDismiss: () -> Unit, onOpenLauncherSettings: () -> Unit) {
+fun HelpSheet(
+    onDismiss: () -> Unit,
+    onOpenLauncherSettings: () -> Unit,
+    onCheckUpdate: () -> Unit,
+    versionLabel: String,
+) {
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = G.PanelStrong,
@@ -308,6 +313,13 @@ fun HelpSheet(onDismiss: () -> Unit, onOpenLauncherSettings: () -> Unit) {
         },
         text = {
             Column {
+                Text(
+                    "いまの版: $versionLabel",
+                    color = G.Cyan,
+                    fontSize = 13.sp,
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
                 HelpLine("タップ … アプリを起動")
                 HelpLine("右の ⋮ … お気に入り・フォルダ・アンインストール")
                 HelpLine("長押し … ⋮ と同じメニュー")
@@ -316,6 +328,10 @@ fun HelpSheet(onDismiss: () -> Unit, onOpenLauncherSettings: () -> Unit) {
                 HelpLine("▲ ALL UNITS … 全アプリ一覧")
                 HelpLine("右端 A〜Z … かな／漢字もローマ字頭文字で分類")
                 Spacer(Modifier.height(12.dp))
+                ActionLine("\u21BB  更新を確認", G.Cyan) {
+                    onDismiss()
+                    onCheckUpdate()
+                }
                 ActionLine("\u2699  ホームアプリ（ランチャー）の変更", G.Cyan) {
                     onDismiss()
                     onOpenLauncherSettings()
