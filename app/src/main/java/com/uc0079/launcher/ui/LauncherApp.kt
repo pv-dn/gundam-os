@@ -216,31 +216,6 @@ private fun HomeScreen(
             }
 
             Spacer(Modifier.height(22.dp))
-            SectionLabel(
-                text = "FOLDERS / フォルダ",
-                onAdd = { createFolderOpen = true }
-            )
-            Spacer(Modifier.height(6.dp))
-            if (folders.isEmpty()) {
-                Text(
-                    text = "なし — 右の ＋ で作成",
-                    color = G.Dim,
-                    fontSize = 12.sp,
-                    fontFamily = FontFamily.Monospace,
-                    modifier = Modifier.padding(bottom = 4.dp)
-                )
-            }
-            folders.forEach { folder ->
-                FolderRow(
-                    folder = folder,
-                    previewIcons = vm.appsInFolder(folder.id).take(4).map { it.icon },
-                    onOpen = { onOpenFolder(folder.id) },
-                    onRename = { renameFolder = folder },
-                    onDelete = { vm.deleteFolder(folder.id) }
-                )
-            }
-
-            Spacer(Modifier.height(22.dp))
             SectionLabel("FAVORITE UNITS / お気に入り")
             Spacer(Modifier.height(6.dp))
             if (favorites.isEmpty()) {
@@ -271,6 +246,31 @@ private fun HomeScreen(
                         iconSize = 34.dp
                     )
                 }
+            }
+
+            Spacer(Modifier.height(22.dp))
+            SectionLabel(
+                text = "FOLDERS / フォルダ",
+                onAdd = { createFolderOpen = true }
+            )
+            Spacer(Modifier.height(6.dp))
+            if (folders.isEmpty()) {
+                Text(
+                    text = "なし — 右の ＋ で作成",
+                    color = G.Dim,
+                    fontSize = 12.sp,
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+            }
+            folders.forEach { folder ->
+                FolderRow(
+                    folder = folder,
+                    previewIcons = vm.appsInFolder(folder.id).take(4).map { it.icon },
+                    onOpen = { onOpenFolder(folder.id) },
+                    onRename = { renameFolder = folder },
+                    onDelete = { vm.deleteFolder(folder.id) }
+                )
             }
             Spacer(Modifier.height(14.dp))
         }
