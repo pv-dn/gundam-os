@@ -79,7 +79,6 @@ fun LauncherApp(vm: LauncherViewModel, widgets: WidgetHostController) {
         var screen by remember { mutableStateOf(Screen.HOME) }
         var openFolderId by remember { mutableStateOf<String?>(null) }
         val context = LocalContext.current
-        val updateInfo = vm.updateInfo
 
         // System Home button → back to home screen (from ALL / FOLDER).
         val homePulse = vm.homePulse
@@ -90,11 +89,19 @@ fun LauncherApp(vm: LauncherViewModel, widgets: WidgetHostController) {
             }
         }
 
-        if (updateInfo != null) {
+        // Update dialog only when user taps the home banner (not auto-popup).
+        var showUpdateDialog by remember { mutableStateOf(false) }
+        val updateInfo = vm.updateInfo
+        if (showUpdateDialog && updateInfo != null) {
             UpdateDialog(
                 info = updateInfo,
-                onDismiss = { vm.dismissUpdate() },
+                onDismiss = {
+                    showUpdateDialog = false
+                    // Keep banner visible; user can open again from the strip.
+                },
                 onDownload = { apkUrl ->
+                    showUpdateDialog = false
+                    vm.dismissUpdate()
                     UpdateChecker.download(context, apkUrl) { fileUri ->
                         UpdateChecker.installApk(context, fileUri)
                     }
@@ -111,7 +118,8 @@ fun LauncherApp(vm: LauncherViewModel, widgets: WidgetHostController) {
                     onOpenFolder = { id ->
                         openFolderId = id
                         screen = Screen.FOLDER
-                    }
+                    },
+                    onOpenUpdate = { showUpdateDialog = true },
                 )
                 Screen.ALL -> {
                     BackHandler { screen = Screen.HOME }
@@ -160,7 +168,8 @@ private fun HomeScreen(
     vm: LauncherViewModel,
     widgets: WidgetHostController,
     onOpenAll: () -> Unit,
-    onOpenFolder: (String) -> Unit
+    onOpenFolder: (String) -> Unit,
+    onOpenUpdate: () -> Unit,
 ) {
     val favorites = vm.favoriteApps
     val folders = vm.folders
@@ -168,6 +177,7 @@ private fun HomeScreen(
     var createFolderOpen by remember { mutableStateOf(false) }
     var renameFolder by remember { mutableStateOf<AppFolder?>(null) }
     var helpOpen by remember { mutableStateOf(false) }
+    val updateInfo = vm.updateInfo
 
     Column(
         modifier = Modifier
@@ -179,15 +189,12 @@ private fun HomeScreen(
         HudHeader(
             unitCount = vm.apps.size,
             onSwipeUp = onOpenAll,
-            onHelp = { helpOpen = true }
         )
 
-        Text(
-            text = "タップ＝起動　　▲▼＝順番　　右の ⋮ ＝ 設定",
-            color = G.Dim,
-            fontSize = 11.sp,
-            fontFamily = FontFamily.Monospace,
-            modifier = Modifier.padding(top = 6.dp, bottom = 2.dp)
+        HomeCommandStrip(
+            updateInfo = updateInfo,
+            onOpenUpdate = onOpenUpdate,
+            onOpenMenu = { helpOpen = true },
         )
 
         Column(
@@ -195,7 +202,7 @@ private fun HomeScreen(
                 .weight(1f)
                 .verticalScroll(scroll)
         ) {
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(12.dp))
             SectionLabel(
                 text = "WIDGETS / ウィジェット",
                 onAdd = { widgets.pickWidget() }
@@ -361,7 +368,72 @@ private fun WidgetFrame(widgets: WidgetHostController, id: Int) {
 private val Green = Color(0xFF15C26B)
 
 @Composable
-private fun HudHeader(unitCount: Int, onSwipeUp: () -> Unit, onHelp: () -> Unit) {
+private fun HomeCommandStrip(
+    updateInfo: UpdateChecker.UpdateInfo?,
+    onOpenUpdate: () -> Unit,
+    onOpenMenu: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp, bottom = 2.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (updateInfo != null && updateInfo.available) {
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .hudFrame(fill = G.PanelStrong, bracket = G.Red)
+                    .clickable(onClick = onOpenUpdate)
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "UPDATE",
+                    color = G.Red,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = updateInfo.message,
+                    color = G.White,
+                    fontSize = 12.sp,
+                    fontFamily = FontFamily.Monospace,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    text = "詳細 \u25B6",
+                    color = G.Cyan,
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
+            Spacer(Modifier.width(8.dp))
+        } else {
+            Spacer(Modifier.weight(1f))
+        }
+
+        Text(
+            text = "MENU",
+            color = G.Cyan,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+            fontFamily = FontFamily.Monospace,
+            letterSpacing = 1.sp,
+            modifier = Modifier
+                .hudFrame(fill = G.Panel, bracket = G.Cyan)
+                .clickable(onClick = onOpenMenu)
+                .padding(horizontal = 12.dp, vertical = 8.dp)
+        )
+    }
+}
+
+@Composable
+private fun HudHeader(unitCount: Int, onSwipeUp: () -> Unit) {
     val (time, date) = rememberClock()
     val battery = rememberBatteryPercent()
 
@@ -391,18 +463,6 @@ private fun HudHeader(unitCount: Int, onSwipeUp: () -> Unit, onHelp: () -> Unit)
                 letterSpacing = 1.sp
             )
             Spacer(Modifier.weight(1f))
-            Text(
-                text = "?",
-                color = G.Cyan,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Monospace,
-                modifier = Modifier
-                    .size(32.dp)
-                    .clickable(onClick = onHelp)
-                    .padding(4.dp),
-            )
-            Spacer(Modifier.width(6.dp))
             Text(
                 text = if (battery >= 0) "PWR $battery%" else "PWR --",
                 color = if (battery in 0..15) G.Red else G.Yellow,
