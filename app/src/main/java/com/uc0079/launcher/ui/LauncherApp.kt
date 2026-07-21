@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
@@ -434,7 +435,7 @@ private fun HudHeader(
             .padding(horizontal = 12.dp, vertical = 8.dp)
     ) {
         Column(Modifier.fillMaxWidth()) {
-            // Top rail — callsign + energy + MENU
+            // Top rail — callsign + energy
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
@@ -445,34 +446,26 @@ private fun HudHeader(
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.Monospace,
-                    letterSpacing = 1.sp
+                    letterSpacing = 1.sp,
+                    maxLines = 1,
+                    softWrap = false
                 )
                 Spacer(Modifier.width(8.dp))
                 Text(
                     text = "A.E.U.G.",
                     color = G.Dim,
                     fontSize = 10.sp,
-                    fontFamily = FontFamily.Monospace
+                    fontFamily = FontFamily.Monospace,
+                    maxLines = 1,
+                    softWrap = false
                 )
                 Spacer(Modifier.weight(1f))
                 EnergyMeter(percent = battery)
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    text = "MENU",
-                    color = G.Cyan,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace,
-                    letterSpacing = 1.sp,
-                    modifier = Modifier
-                        .clickable(onClick = onOpenMenu)
-                        .padding(horizontal = 6.dp, vertical = 4.dp)
-                )
             }
 
             Spacer(Modifier.height(6.dp))
 
-            // Main chronometer + unit mark
+            // Main chronometer + unit mark + MENU
             Row(verticalAlignment = Alignment.Bottom) {
                 Box(
                     Modifier
@@ -500,6 +493,19 @@ private fun HudHeader(
                 }
                 Spacer(Modifier.weight(1f))
                 Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = "MENU",
+                        color = G.Cyan,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace,
+                        letterSpacing = 2.sp,
+                        maxLines = 1,
+                        softWrap = false,
+                        modifier = Modifier
+                            .clickable(onClick = onOpenMenu)
+                            .padding(bottom = 4.dp)
+                    )
                     Text(
                         text = "\u30BC\u30FC\u30BF\u30AC\u30F3\u30C0\u30E0",
                         color = G.Dim,
@@ -577,21 +583,26 @@ private fun EnergyMeter(percent: Int) {
         pct <= 35 -> G.Yellow
         else -> G.Cyan
     }
-    Row(verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.wrapContentWidth()
+    ) {
         Text(
             text = "ENRG",
             color = G.Dim,
             fontSize = 9.sp,
             fontFamily = FontFamily.Monospace,
-            letterSpacing = 1.sp
+            letterSpacing = 1.sp,
+            maxLines = 1,
+            softWrap = false
         )
-        Spacer(Modifier.width(6.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+        Spacer(Modifier.width(4.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(1.5.dp)) {
             repeat(segments) { i ->
                 Box(
                     Modifier
-                        .width(7.dp)
-                        .height(12.dp)
+                        .width(6.dp)
+                        .height(10.dp)
                         .background(
                             if (i < filled) barColor else Color(0x33FFFFFF),
                             SkewTag
@@ -599,13 +610,15 @@ private fun EnergyMeter(percent: Int) {
                 )
             }
         }
-        Spacer(Modifier.width(6.dp))
+        Spacer(Modifier.width(4.dp))
         Text(
             text = if (percent >= 0) "$pct%" else "--",
             color = barColor,
             fontSize = 10.sp,
             fontWeight = FontWeight.Bold,
-            fontFamily = FontFamily.Monospace
+            fontFamily = FontFamily.Monospace,
+            maxLines = 1,
+            softWrap = false
         )
     }
 }
