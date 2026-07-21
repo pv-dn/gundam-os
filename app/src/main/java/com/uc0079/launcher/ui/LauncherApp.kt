@@ -190,13 +190,15 @@ private fun HomeScreen(
         HudHeader(
             unitCount = vm.apps.size,
             onSwipeUp = onOpenAll,
-        )
-
-        HomeCommandStrip(
-            updateInfo = updateInfo,
-            onOpenUpdate = onOpenUpdate,
             onOpenMenu = { helpOpen = true },
         )
+
+        if (updateInfo != null && updateInfo.available) {
+            UpdateBanner(
+                message = updateInfo.message,
+                onOpenUpdate = onOpenUpdate,
+            )
+        }
 
         Column(
             Modifier
@@ -367,72 +369,51 @@ private fun WidgetFrame(widgets: WidgetHostController, id: Int) {
 }
 
 @Composable
-private fun HomeCommandStrip(
-    updateInfo: UpdateChecker.UpdateInfo?,
+private fun UpdateBanner(
+    message: String,
     onOpenUpdate: () -> Unit,
-    onOpenMenu: () -> Unit,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 8.dp, bottom = 2.dp),
+            .padding(top = 8.dp, bottom = 2.dp)
+            .hudFrame(fill = G.PanelStrong, bracket = G.Red)
+            .clickable(onClick = onOpenUpdate)
+            .padding(horizontal = 10.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        if (updateInfo != null && updateInfo.available) {
-            Row(
-                modifier = Modifier
-                    .weight(1f)
-                    .hudFrame(fill = G.PanelStrong, bracket = G.Red)
-                    .clickable(onClick = onOpenUpdate)
-                    .padding(horizontal = 10.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "UPDATE",
-                    color = G.Red,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    text = updateInfo.message,
-                    color = G.White,
-                    fontSize = 12.sp,
-                    fontFamily = FontFamily.Monospace,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
-                )
-                Text(
-                    text = "詳細 \u25B6",
-                    color = G.Cyan,
-                    fontSize = 11.sp,
-                    fontFamily = FontFamily.Monospace
-                )
-            }
-            Spacer(Modifier.width(8.dp))
-        } else {
-            Spacer(Modifier.weight(1f))
-        }
-
         Text(
-            text = "MENU",
-            color = G.Cyan,
+            text = "UPDATE",
+            color = G.Red,
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
+            fontFamily = FontFamily.Monospace
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(
+            text = message,
+            color = G.White,
+            fontSize = 12.sp,
             fontFamily = FontFamily.Monospace,
-            letterSpacing = 1.sp,
-            modifier = Modifier
-                .hudFrame(fill = G.Panel, bracket = G.Cyan)
-                .clickable(onClick = onOpenMenu)
-                .padding(horizontal = 12.dp, vertical = 8.dp)
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
+        )
+        Text(
+            text = "詳細 \u25B6",
+            color = G.Cyan,
+            fontSize = 11.sp,
+            fontFamily = FontFamily.Monospace
         )
     }
 }
 
 @Composable
-private fun HudHeader(unitCount: Int, onSwipeUp: () -> Unit) {
+private fun HudHeader(
+    unitCount: Int,
+    onSwipeUp: () -> Unit,
+    onOpenMenu: () -> Unit,
+) {
     val (time, date) = rememberClock()
     val battery = rememberBatteryPercent()
 
@@ -453,7 +434,7 @@ private fun HudHeader(unitCount: Int, onSwipeUp: () -> Unit) {
             .padding(horizontal = 12.dp, vertical = 8.dp)
     ) {
         Column(Modifier.fillMaxWidth()) {
-            // Top rail — callsign + energy
+            // Top rail — callsign + energy + MENU
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
@@ -475,6 +456,18 @@ private fun HudHeader(unitCount: Int, onSwipeUp: () -> Unit) {
                 )
                 Spacer(Modifier.weight(1f))
                 EnergyMeter(percent = battery)
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = "MENU",
+                    color = G.Cyan,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace,
+                    letterSpacing = 1.sp,
+                    modifier = Modifier
+                        .clickable(onClick = onOpenMenu)
+                        .padding(horizontal = 6.dp, vertical = 4.dp)
+                )
             }
 
             Spacer(Modifier.height(6.dp))

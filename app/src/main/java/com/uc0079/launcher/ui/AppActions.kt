@@ -344,7 +344,7 @@ fun HelpSheet(
                 HelpLine("長押し … ⋮ と同じメニュー")
                 HelpLine("お気に入りの ⋮ … 上へ／下へで順番変更")
                 HelpLine("セクション右の ＋ … ウィジェット／フォルダ追加")
-                HelpLine("右上 MENU … 使い方・更新確認・ランチャー設定")
+                HelpLine("ヘッダー右 MENU … 使い方・更新確認・ランチャー設定")
                 HelpLine("UPDATE 表示 … タップでダウンロード")
                 HelpLine("▲ ALL UNITS … 全アプリ一覧")
                 HelpLine("右端 A〜Z … かな／漢字もローマ字頭文字で分類")
