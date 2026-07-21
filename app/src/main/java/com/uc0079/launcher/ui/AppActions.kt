@@ -342,7 +342,7 @@ fun HelpSheet(
                 HelpLine("タップ … アプリを起動")
                 HelpLine("右の ⋮ … 名前変更・お気に入り・フォルダ・アンインストール")
                 HelpLine("長押し … ⋮ と同じメニュー")
-                HelpLine("お気に入りの ▲▼ … 順番を入れ替え")
+                HelpLine("お気に入りの ⋮ … 上へ／下へで順番変更")
                 HelpLine("セクション右の ＋ … ウィジェット／フォルダ追加")
                 HelpLine("右上 MENU … 使い方・更新確認・ランチャー設定")
                 HelpLine("UPDATE 表示 … タップでダウンロード")
