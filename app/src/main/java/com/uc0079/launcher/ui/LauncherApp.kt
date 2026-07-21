@@ -494,19 +494,6 @@ private fun HudHeader(
                 Spacer(Modifier.weight(1f))
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
-                        text = "MENU",
-                        color = G.Cyan,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Monospace,
-                        letterSpacing = 2.sp,
-                        maxLines = 1,
-                        softWrap = false,
-                        modifier = Modifier
-                            .clickable(onClick = onOpenMenu)
-                            .padding(bottom = 4.dp)
-                    )
-                    Text(
                         text = "\u30BC\u30FC\u30BF\u30AC\u30F3\u30C0\u30E0",
                         color = G.Dim,
                         fontSize = 9.sp
@@ -531,7 +518,7 @@ private fun HudHeader(
 
             Spacer(Modifier.height(6.dp))
 
-            // Bottom data strip
+            // Bottom data strip + MENU (same row → no extra header height)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
@@ -550,21 +537,41 @@ private fun HudHeader(
                     text = date,
                     color = G.Dim,
                     fontSize = 11.sp,
-                    fontFamily = FontFamily.Monospace
+                    fontFamily = FontFamily.Monospace,
+                    maxLines = 1,
+                    softWrap = false
                 )
                 Spacer(Modifier.weight(1f))
                 Text(
                     text = "U.C.0087",
                     color = G.Cyan,
                     fontSize = 11.sp,
-                    fontFamily = FontFamily.Monospace
+                    fontFamily = FontFamily.Monospace,
+                    maxLines = 1,
+                    softWrap = false
                 )
                 Spacer(Modifier.width(10.dp))
                 Text(
                     text = "UNITS $unitCount",
                     color = G.Dim,
                     fontSize = 11.sp,
-                    fontFamily = FontFamily.Monospace
+                    fontFamily = FontFamily.Monospace,
+                    maxLines = 1,
+                    softWrap = false
+                )
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    text = "MENU",
+                    color = G.Cyan,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace,
+                    letterSpacing = 1.sp,
+                    maxLines = 1,
+                    softWrap = false,
+                    modifier = Modifier
+                        .clickable(onClick = onOpenMenu)
+                        .padding(vertical = 2.dp)
                 )
             }
         }
