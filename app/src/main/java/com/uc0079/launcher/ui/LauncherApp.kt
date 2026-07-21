@@ -47,6 +47,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
@@ -562,8 +564,8 @@ private fun HudHeader(unitCount: Int, onSwipeUp: () -> Unit) {
                     .drawBehind {
                         drawLine(
                             color = G.Border,
-                            start = androidx.compose.ui.geometry.Offset(0f, 0f),
-                            end = androidx.compose.ui.geometry.Offset(size.width, 0f),
+                            start = Offset(0f, 0f),
+                            end = Offset(size.width, 0f),
                             strokeWidth = 1.dp.toPx()
                         )
                     }
