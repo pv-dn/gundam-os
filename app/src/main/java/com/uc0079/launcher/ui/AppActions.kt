@@ -104,13 +104,13 @@ fun AppActionSheet(
     onMoveDown: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
-    // Single dialog only — nested AlertDialogs break uninstall on some OEMs.
+    // Single dialog only  Enested AlertDialogs break uninstall on some OEMs.
     var confirmUninstall by remember { mutableStateOf(false) }
 
     if (!confirmUninstall) {
         AlertDialog(
             onDismissRequest = onDismiss,
-            containerColor = G.PanelStrong,
+            containerColor = G.Dialog,
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Image(
@@ -131,7 +131,7 @@ fun AppActionSheet(
             },
             text = {
                 Column {
-                    ActionLine("\u25B6  起動", G.White) {
+                    ActionLine("\u25B6  起勁E, G.White) {
                         onDismiss()
                         onLaunch()
                     }
@@ -158,25 +158,25 @@ fun AppActionSheet(
                         onDismiss()
                         onRename()
                     }
-                    ActionLine("\u25A3  フォルダにしまう", G.White) {
+                    ActionLine("\u25A3  フォルダにしまぁE, G.White) {
                         onDismiss()
                         onAddToFolder()
                     }
                     if (currentFolder != null) {
                         ActionLine(
-                            "\u25A3  フォルダから出す (${currentFolder.name})",
+                            "\u25A3  フォルダから出ぁE(${currentFolder.name})",
                             G.Cyan
                         ) {
                             onDismiss()
                             onRemoveFromFolder()
                         }
                     }
-                    ActionLine("\u2139  アプリ情報", G.White) {
+                    ActionLine("\u2139  アプリ惁E��", G.White) {
                         onDismiss()
                         context.openAppInfo(app.packageName)
                     }
                     Spacer(Modifier.height(8.dp))
-                    ActionLine("\u2715  アンインストール", G.Red) {
+                    ActionLine("\u2715  アンインスト�Eル", G.Red) {
                         confirmUninstall = true
                     }
                 }
@@ -184,20 +184,20 @@ fun AppActionSheet(
             confirmButton = {},
             dismissButton = {
                 TextButton(onClick = onDismiss) {
-                    Text("閉じる", color = G.Dim, fontFamily = FontFamily.Monospace)
+                    Text("閉じめE, color = G.Dim, fontFamily = FontFamily.Monospace)
                 }
             }
         )
     } else {
         AlertDialog(
             onDismissRequest = { confirmUninstall = false },
-            containerColor = G.PanelStrong,
+            containerColor = G.Dialog,
             title = {
-                Text("アンインストール", color = G.White, fontWeight = FontWeight.Bold)
+                Text("アンインスト�Eル", color = G.White, fontWeight = FontWeight.Bold)
             },
             text = {
                 Text(
-                    "「${displayName}」を削除します。\n次の画面で「アンインストール」を押してください。",
+                    "、E{displayName}」を削除します、En次の画面で「アンインスト�Eル」を押してください、E,
                     color = G.Dim,
                     fontSize = 14.sp
                 )
@@ -248,7 +248,7 @@ fun FolderActionSheet(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = G.PanelStrong,
+        containerColor = G.Dialog,
         title = {
             Text(
                 text = "\u25A3  ${folder.name}",
@@ -260,13 +260,13 @@ fun FolderActionSheet(
         text = {
             Column {
                 Text(
-                    "${folder.packageNames.size} 個のアプリ",
+                    "${folder.packageNames.size} 個�Eアプリ",
                     color = G.Dim,
                     fontSize = 12.sp,
                     fontFamily = FontFamily.Monospace,
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
-                ActionLine("\u25B6  フォルダを開く", G.White) {
+                ActionLine("\u25B6  フォルダを開ぁE, G.White) {
                     onDismiss()
                     onOpen()
                 }
@@ -282,7 +282,7 @@ fun FolderActionSheet(
         confirmButton = {},
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("閉じる", color = G.Dim, fontFamily = FontFamily.Monospace)
+                Text("閉じめE, color = G.Dim, fontFamily = FontFamily.Monospace)
             }
         }
     )
@@ -290,11 +290,11 @@ fun FolderActionSheet(
     if (confirmDelete) {
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
-            containerColor = G.PanelStrong,
+            containerColor = G.Dialog,
             title = { Text("フォルダ削除", color = G.White) },
             text = {
                 Text(
-                    "「${folder.name}」を削除します。\n中のアプリは A〜Z 一覧に戻ります。",
+                    "、E{folder.name}」を削除します、En中のアプリは A〜Z 一覧に戻ります、E,
                     color = G.Dim,
                     fontSize = 14.sp
                 )
@@ -326,34 +326,34 @@ fun HelpSheet(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = G.PanelStrong,
+        containerColor = G.Dialog,
         title = {
-            Text("使い方", color = G.White, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+            Text("使ぁE��", color = G.White, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
         },
         text = {
             Column {
                 Text(
-                    "いまの版: $versionLabel",
+                    "ぁE��の牁E $versionLabel",
                     color = G.Cyan,
                     fontSize = 13.sp,
                     fontFamily = FontFamily.Monospace,
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
-                HelpLine("タップ … アプリを起動")
-                HelpLine("右の ⋮ … 名前変更・お気に入り・フォルダ・アンインストール")
-                HelpLine("長押し … ⋮ と同じメニュー")
-                HelpLine("お気に入りの ⋮ … 上へ／下へで順番変更")
-                HelpLine("セクション右の ＋ … ウィジェット／フォルダ追加")
-                HelpLine("右上 MENU … 使い方・更新確認・ランチャー設定")
-                HelpLine("UPDATE 表示 … タップでダウンロード")
+                HelpLine("タチE�E … アプリを起勁E)
+                HelpLine("右の ⋮ … 名前変更・お気に入り�Eフォルダ・アンインスト�Eル")
+                HelpLine("長押ぁE… ⋮ と同じメニュー")
+                HelpLine("お気に入り�E ⋮ … 上へ�E�下へで頁E��変更")
+                HelpLine("セクション右の �E�E… ウィジェチE���E�フォルダ追加")
+                HelpLine("右丁EMENU … 使ぁE��・更新確認�Eランチャー設宁E)
+                HelpLine("UPDATE 表示 … タチE�EでダウンローチE)
                 HelpLine("▲ ALL UNITS … 全アプリ一覧")
-                HelpLine("右端 A〜Z … かな／漢字もローマ字頭文字で分類")
+                HelpLine("右端 A〜Z … かな�E�漢字もローマ字頭斁E��で刁E��E)
                 Spacer(Modifier.height(12.dp))
-                ActionLine("\u21BB  更新を確認", G.Cyan) {
+                ActionLine("\u21BB  更新を確誁E, G.Cyan) {
                     onDismiss()
                     onCheckUpdate()
                 }
-                ActionLine("\u2699  ホームアプリ（ランチャー）の変更", G.Cyan) {
+                ActionLine("\u2699  ホ�Eムアプリ�E�ランチャー�E��E変更", G.Cyan) {
                     onDismiss()
                     onOpenLauncherSettings()
                 }
@@ -362,7 +362,7 @@ fun HelpSheet(
         confirmButton = {},
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("閉じる", color = G.Dim, fontFamily = FontFamily.Monospace)
+                Text("閉じめE, color = G.Dim, fontFamily = FontFamily.Monospace)
             }
         }
     )
@@ -389,7 +389,7 @@ fun UpdateDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = G.PanelStrong,
+        containerColor = G.Dialog,
         title = {
             Text(
                 "UPDATE AVAILABLE",
@@ -408,7 +408,7 @@ fun UpdateDialog(
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    "新しいバージョンが利用可能です。\nダウンロードしてインストールしますか？",
+                    "新しいバ�Eジョンが利用可能です、Enダウンロードしてインスト�Eルしますか�E�E,
                     color = G.Dim,
                     fontFamily = FontFamily.Monospace,
                     fontSize = 13.sp
@@ -417,7 +417,7 @@ fun UpdateDialog(
         },
         confirmButton = {
             TextButton(onClick = { onDownload(info.apkUrl); onDismiss() }) {
-                Text("ダウンロード", color = G.Cyan, fontFamily = FontFamily.Monospace)
+                Text("ダウンローチE, color = G.Cyan, fontFamily = FontFamily.Monospace)
             }
         },
         dismissButton = {

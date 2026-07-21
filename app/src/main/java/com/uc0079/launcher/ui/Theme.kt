@@ -20,6 +20,8 @@ object G {
     val ScrimBottom = Color(0xFA03040A)
     val Panel = Color(0x1A2C6BE6)
     val PanelStrong = Color(0x2A16305E)
+    /** Opaque panel for menus / dialogs (readable over wallpaper). */
+    val Dialog = Color(0xF2141E32)
     val Border = Color(0x662C6BE6)
     val Blue = Color(0xFF2C6BE6)
     val Cyan = Color(0xFF4FB6E6)
