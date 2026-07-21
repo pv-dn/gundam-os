@@ -366,6 +366,7 @@ private fun WidgetFrame(widgets: WidgetHostController, id: Int) {
     }
 }
 
+@Composable
 private fun HomeCommandStrip(
     updateInfo: UpdateChecker.UpdateInfo?,
     onOpenUpdate: () -> Unit,
