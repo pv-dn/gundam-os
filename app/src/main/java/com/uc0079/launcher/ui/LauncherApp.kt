@@ -81,7 +81,7 @@ fun LauncherApp(vm: LauncherViewModel, widgets: WidgetHostController) {
         var openFolderId by remember { mutableStateOf<String?>(null) }
         val context = LocalContext.current
 
-        // System Home button ↁEback to home screen (from ALL / FOLDER).
+        // System Home button → back to home screen (from ALL / FOLDER).
         val homePulse = vm.homePulse
         LaunchedEffect(homePulse) {
             if (homePulse > 0) {
@@ -205,13 +205,13 @@ private fun HomeScreen(
         ) {
             Spacer(Modifier.height(12.dp))
             SectionLabel(
-                text = "WIDGETS / ウィジェチE��",
+                text = "WIDGETS / ウィジェット",
                 onAdd = { widgets.pickWidget() }
             )
             Spacer(Modifier.height(8.dp))
             if (widgets.widgetIds.isEmpty()) {
                 Text(
-                    text = "なぁE E右の �E�Eで追加",
+                    text = "なし — 右の ＋ で追加",
                     color = G.Dim,
                     fontSize = 12.sp,
                     fontFamily = FontFamily.Monospace,
@@ -224,11 +224,11 @@ private fun HomeScreen(
             }
 
             Spacer(Modifier.height(22.dp))
-            SectionLabel("FAVORITE UNITS / お気に入めE)
+            SectionLabel("FAVORITE UNITS / お気に入り")
             Spacer(Modifier.height(6.dp))
             if (favorites.isEmpty()) {
                 Text(
-                    text = "登録なぁE E[ALL UNITS] を開き、\nアプリ右の ⋮ から「お気に入りに追加、E,
+                    text = "登録なし — [ALL UNITS] を開き、\nアプリ右の ⋮ から「お気に入りに追加」",
                     color = G.Dim,
                     fontSize = 13.sp,
                     fontFamily = FontFamily.Monospace,
@@ -274,7 +274,7 @@ private fun HomeScreen(
             Spacer(Modifier.height(6.dp))
             if (folders.isEmpty()) {
                 Text(
-                    text = "なぁE E右の �E�Eで作�E",
+                    text = "なし — 右の ＋ で作成",
                     color = G.Dim,
                     fontSize = 12.sp,
                     fontFamily = FontFamily.Monospace,
@@ -453,7 +453,7 @@ private fun HudHeader(unitCount: Int, onSwipeUp: () -> Unit) {
             .padding(horizontal = 12.dp, vertical = 8.dp)
     ) {
         Column(Modifier.fillMaxWidth()) {
-            // Top rail  Ecallsign + energy
+            // Top rail — callsign + energy
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
@@ -650,7 +650,8 @@ private data class ListRow(
 )
 
 /** Header marker for the favorites block pinned above A–Z. */
-private const val FAV_HEADER = '\u2605' // ☁E/** Header marker for folders block. */
+private const val FAV_HEADER = '\u2605' // ★
+/** Header marker for folders block. */
 private const val FOLDER_HEADER = '\u25A3' // ▣
 
 @Composable
@@ -1085,7 +1086,7 @@ private fun AppRow(
     }
     if (createNameOpen) {
         FolderNameDialog(
-            title = "新しいフォルダにしまぁE,
+            title = "新しいフォルダにしまう",
             initial = "フォルダ",
             onDismiss = { createNameOpen = false },
             onConfirm = { name ->
@@ -1270,7 +1271,7 @@ private fun FolderScreen(
 
         if (apps.isEmpty()) {
             Text(
-                text = "空でぁE E全アプリで ⋮ を押し、\n「フォルダにしまぁE��で入れてください、E,
+                text = "空です — 全アプリで ⋮ を押し、\n「フォルダにしまう」で入れてください。",
                 color = G.Dim,
                 fontSize = 13.sp,
                 fontFamily = FontFamily.Monospace,
@@ -1382,7 +1383,7 @@ private fun RenameAppDialog(
         text = {
             Column {
                 Text(
-                    "允E�E名前: $originalName",
+                    "元の名前: $originalName",
                     color = G.Dim,
                     fontSize = 12.sp,
                     fontFamily = FontFamily.Monospace,
@@ -1406,7 +1407,7 @@ private fun RenameAppDialog(
                 if (onReset != null && currentName != originalName) {
                     Spacer(Modifier.height(10.dp))
                     Text(
-                        text = "允E�E名前に戻ぁE,
+                        text = "元の名前に戻す",
                         color = G.Cyan,
                         fontSize = 14.sp,
                         fontFamily = FontFamily.Monospace,
@@ -1443,7 +1444,7 @@ private fun FolderPickDialog(
         containerColor = G.Dialog,
         title = {
             Text(
-                "フォルダにしまぁE,
+                "フォルダにしまう",
                 color = G.White,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold
@@ -1452,7 +1453,7 @@ private fun FolderPickDialog(
         text = {
             Column {
                 Text(
-                    "選んだアプリは A〜Z 一覧から隠れます、E,
+                    "選んだアプリは A〜Z 一覧から隠れます。",
                     color = G.Dim,
                     fontSize = 12.sp,
                     fontFamily = FontFamily.Monospace
