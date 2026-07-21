@@ -1079,37 +1079,6 @@ private fun AppRow(
                 )
             }
         }
-        if (onMoveUp != null || onMoveDown != null) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = "\u25B2",
-                    color = if (onMoveUp != null) G.Cyan else G.Dim.copy(alpha = 0.35f),
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier
-                        .size(28.dp)
-                        .then(
-                            if (onMoveUp != null) Modifier.clickable(onClick = onMoveUp)
-                            else Modifier
-                        )
-                        .padding(2.dp)
-                )
-                Text(
-                    text = "\u25BC",
-                    color = if (onMoveDown != null) G.Cyan else G.Dim.copy(alpha = 0.35f),
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier
-                        .size(28.dp)
-                        .then(
-                            if (onMoveDown != null) Modifier.clickable(onClick = onMoveDown)
-                            else Modifier
-                        )
-                        .padding(2.dp)
-                )
-            }
-            Spacer(Modifier.width(2.dp))
-        }
         if (isFavorite) {
             Text(text = "\u2605", color = G.Yellow, fontSize = 12.sp)
             Spacer(Modifier.width(4.dp))
