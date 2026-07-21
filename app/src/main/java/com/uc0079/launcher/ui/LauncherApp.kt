@@ -437,7 +437,7 @@ private fun HudHeader(unitCount: Int, onSwipeUp: () -> Unit) {
     val (time, date) = rememberClock()
     val battery = rememberBatteryPercent()
 
-    Column(
+    Box(
         Modifier
             .fillMaxWidth()
             .padding(top = 14.dp)
@@ -450,95 +450,192 @@ private fun HudHeader(unitCount: Int, onSwipeUp: () -> Unit) {
                     onDragCancel = { total = 0f }
                 )
             }
-            .hudFrame()
-            .padding(horizontal = 14.dp, vertical = 12.dp)
+            .cockpitPanel()
+            .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = "A.E.U.G. // MSZ-006",
-                color = G.Cyan,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Monospace,
-                letterSpacing = 1.sp
-            )
-            Spacer(Modifier.weight(1f))
-            Text(
-                text = if (battery >= 0) "PWR $battery%" else "PWR --",
-                color = if (battery in 0..15) G.Red else G.Yellow,
-                fontSize = 11.sp,
-                fontFamily = FontFamily.Monospace
-            )
-        }
-
-        Spacer(Modifier.height(8.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            StatusDot(G.Yellow, "SYS")
-            Spacer(Modifier.width(12.dp))
-            StatusDot(Green, "COM")
-            Spacer(Modifier.width(12.dp))
-            StatusDot(G.Cyan, "NAV")
-            Spacer(Modifier.weight(1f))
-            Text(
-                text = "ALL GREEN",
-                color = Green,
-                fontSize = 10.sp,
-                fontFamily = FontFamily.Monospace,
-                letterSpacing = 1.sp
-            )
-        }
-
-        Spacer(Modifier.height(8.dp))
-        Row(verticalAlignment = Alignment.Bottom) {
-            Box(
-                Modifier
-                    .width(5.dp)
-                    .height(48.dp)
-                    .background(G.Red)
-            )
-            Spacer(Modifier.width(12.dp))
-            Text(
-                text = time,
-                color = G.White,
-                fontSize = 52.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Monospace,
-                letterSpacing = 2.sp
-            )
-            Spacer(Modifier.weight(1f))
-            Column(horizontalAlignment = Alignment.End) {
+        Column(Modifier.fillMaxWidth()) {
+            // Top rail — callsign + energy
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
                 Text(
-                    text = "\u30BC\u30FC\u30BF\u30AC\u30F3\u30C0\u30E0",
-                    color = G.Dim,
-                    fontSize = 10.sp
-                )
-                Text(
-                    text = "ZETA",
-                    color = G.Blue,
-                    fontSize = 16.sp,
+                    text = "MSZ-006",
+                    color = G.Cyan,
+                    fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.Monospace,
-                    letterSpacing = 4.sp
+                    letterSpacing = 1.sp
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = "A.E.U.G.",
+                    color = G.Dim,
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+                Spacer(Modifier.weight(1f))
+                EnergyMeter(percent = battery)
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            // Status lights
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                StatusDot(G.Yellow, "SYS")
+                Spacer(Modifier.width(10.dp))
+                StatusDot(Green, "COM")
+                Spacer(Modifier.width(10.dp))
+                StatusDot(G.Cyan, "NAV")
+                Spacer(Modifier.width(10.dp))
+                StatusDot(G.Blue, "THR")
+                Spacer(Modifier.weight(1f))
+                Text(
+                    text = if (battery in 0..15) "ENERGY LOW" else "ALL GREEN",
+                    color = if (battery in 0..15) G.Red else Green,
+                    fontSize = 9.sp,
+                    fontFamily = FontFamily.Monospace,
+                    letterSpacing = 1.sp
+                )
+            }
+
+            Spacer(Modifier.height(10.dp))
+
+            // Main chronometer + unit mark
+            Row(verticalAlignment = Alignment.Bottom) {
+                Box(
+                    Modifier
+                        .width(4.dp)
+                        .height(44.dp)
+                        .background(G.Red)
+                )
+                Spacer(Modifier.width(10.dp))
+                Column {
+                    Text(
+                        text = "MISSION TIME",
+                        color = G.Dim,
+                        fontSize = 8.sp,
+                        fontFamily = FontFamily.Monospace,
+                        letterSpacing = 1.sp
+                    )
+                    Text(
+                        text = time,
+                        color = G.White,
+                        fontSize = 46.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace,
+                        letterSpacing = 2.sp
+                    )
+                }
+                Spacer(Modifier.weight(1f))
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = "\u30BC\u30FC\u30BF\u30AC\u30F3\u30C0\u30E0",
+                        color = G.Dim,
+                        fontSize = 9.sp
+                    )
+                    Text(
+                        text = "ZETA",
+                        color = G.Cyan,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace,
+                        letterSpacing = 5.sp
+                    )
+                    Text(
+                        text = "ORBITAL",
+                        color = G.Blue,
+                        fontSize = 9.sp,
+                        fontFamily = FontFamily.Monospace,
+                        letterSpacing = 2.sp
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            // Bottom data strip
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .drawBehind {
+                        drawLine(
+                            color = G.Border,
+                            start = androidx.compose.ui.geometry.Offset(0f, 0f),
+                            end = androidx.compose.ui.geometry.Offset(size.width, 0f),
+                            strokeWidth = 1.dp.toPx()
+                        )
+                    }
+                    .padding(top = 8.dp)
+            ) {
+                Text(
+                    text = date,
+                    color = G.Dim,
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+                Spacer(Modifier.weight(1f))
+                Text(
+                    text = "U.C.0087",
+                    color = G.Cyan,
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    text = "UNITS $unitCount",
+                    color = G.Dim,
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace
                 )
             }
         }
+    }
+}
 
-        Spacer(Modifier.height(6.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = date,
-                color = G.Dim,
-                fontSize = 12.sp,
-                fontFamily = FontFamily.Monospace
-            )
-            Spacer(Modifier.weight(1f))
-            Text(
-                text = "U.C.0087 \u00B7 UNITS:$unitCount",
-                color = G.Dim,
-                fontSize = 12.sp,
-                fontFamily = FontFamily.Monospace
-            )
+/** Segmented reactor / energy gauge for battery %. */
+@Composable
+private fun EnergyMeter(percent: Int) {
+    val pct = percent.coerceIn(0, 100)
+    val segments = 10
+    val filled = if (percent < 0) 0 else ((pct / 100f) * segments).toInt().coerceIn(0, segments)
+    val barColor = when {
+        percent < 0 -> G.Dim
+        pct <= 15 -> G.Red
+        pct <= 35 -> G.Yellow
+        else -> G.Cyan
+    }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = "ENRG",
+            color = G.Dim,
+            fontSize = 9.sp,
+            fontFamily = FontFamily.Monospace,
+            letterSpacing = 1.sp
+        )
+        Spacer(Modifier.width(6.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+            repeat(segments) { i ->
+                Box(
+                    Modifier
+                        .width(7.dp)
+                        .height(12.dp)
+                        .background(
+                            if (i < filled) barColor else Color(0x33FFFFFF),
+                            SkewTag
+                        )
+                )
+            }
         }
+        Spacer(Modifier.width(6.dp))
+        Text(
+            text = if (percent >= 0) "$pct%" else "--",
+            color = barColor,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            fontFamily = FontFamily.Monospace
+        )
     }
 }
 
@@ -547,14 +644,14 @@ private fun StatusDot(color: Color, label: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(
             Modifier
-                .size(7.dp)
+                .size(6.dp)
                 .background(color, CircleShape)
         )
-        Spacer(Modifier.width(5.dp))
+        Spacer(Modifier.width(4.dp))
         Text(
             text = label,
             color = G.Dim,
-            fontSize = 10.sp,
+            fontSize = 9.sp,
             fontFamily = FontFamily.Monospace
         )
     }
