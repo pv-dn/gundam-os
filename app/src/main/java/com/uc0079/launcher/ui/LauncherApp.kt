@@ -6,6 +6,8 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.BatteryManager
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -190,9 +192,16 @@ private fun HomeScreen(
     var createFolderOpen by remember { mutableStateOf(false) }
     var renameFolder by remember { mutableStateOf<AppFolder?>(null) }
     var helpOpen by remember { mutableStateOf(false) }
+    var addWebChooserOpen by remember { mutableStateOf(false) }
     var addWebOpen by remember { mutableStateOf(false) }
     val updateInfo = vm.updateInfo
     val appsByPkg = remember(vm.apps) { vm.apps.associateBy { it.packageName } }
+
+    val pickBookmarkHtml = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) vm.importBookmarksFromUri(uri)
+    }
 
     Column(
         modifier = Modifier
@@ -242,12 +251,12 @@ private fun HomeScreen(
             Spacer(Modifier.height(22.dp))
             SectionLabel(
                 text = "FAVORITE UNITS / お気に入り",
-                onAdd = { addWebOpen = true }
+                onAdd = { addWebChooserOpen = true }
             )
             Spacer(Modifier.height(6.dp))
             if (favorites.isEmpty()) {
                 Text(
-                    text = "登録なし — 右の ＋ で Web 追加、\nまたは [ALL UNITS] の ⋮ からアプリを追加",
+                    text = "登録なし — 右の ＋ で URL / HTML 取り込み、\nまたは [ALL UNITS] の ⋮ からアプリを追加",
                     color = G.Dim,
                     fontSize = 13.sp,
                     fontFamily = FontFamily.Monospace,
@@ -335,6 +344,20 @@ private fun HomeScreen(
         Spacer(Modifier.height(10.dp))
     }
 
+    if (addWebChooserOpen) {
+        AddWebChooserDialog(
+            onDismiss = { addWebChooserOpen = false },
+            onEnterUrl = {
+                addWebChooserOpen = false
+                addWebOpen = true
+            },
+            onImportHtml = {
+                addWebChooserOpen = false
+                pickBookmarkHtml.launch("*/*")
+            }
+        )
+    }
+
     if (addWebOpen) {
         AddWebFavoriteDialog(
             onDismiss = { addWebOpen = false },
@@ -346,6 +369,31 @@ private fun HomeScreen(
                     false
                 }
             }
+        )
+    }
+
+    if (vm.importingBookmarks) {
+        AlertDialog(
+            onDismissRequest = {},
+            containerColor = G.Dialog,
+            title = {
+                Text(
+                    "取り込み中…",
+                    color = G.White,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    "ブックマーク HTML を読み込んでいます",
+                    color = G.Dim,
+                    fontSize = 14.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+            },
+            confirmButton = {},
+            dismissButton = {}
         )
     }
 
@@ -1161,6 +1209,63 @@ private fun WebFavoriteRow(
             }
         )
     }
+}
+
+@Composable
+private fun AddWebChooserDialog(
+    onDismiss: () -> Unit,
+    onEnterUrl: () -> Unit,
+    onImportHtml: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = G.Dialog,
+        title = {
+            Text(
+                "Web を追加",
+                color = G.White,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column {
+                Text(
+                    text = "\u270E  URL を入力",
+                    color = G.White,
+                    fontSize = 16.sp,
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onEnterUrl)
+                        .padding(vertical = 12.dp)
+                )
+                Text(
+                    text = "\u2609  HTML から取り込む",
+                    color = G.Cyan,
+                    fontSize = 16.sp,
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onImportHtml)
+                        .padding(vertical = 12.dp)
+                )
+                Text(
+                    text = "Chrome 等で書き出したブックマーク HTML を選びます",
+                    color = G.Dim,
+                    fontSize = 12.sp,
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("キャンセル", color = G.Dim, fontFamily = FontFamily.Monospace)
+            }
+        }
+    )
 }
 
 @Composable

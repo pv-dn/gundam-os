@@ -47,8 +47,12 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     var homePulse by mutableStateOf(0)
         private set
 
-    /** One-shot toast after browser Share → Z GUNDAM OS. */
+    /** One-shot toast after browser Share / bookmark import. */
     var shareHint by mutableStateOf<String?>(null)
+        private set
+
+    /** True while bookmark HTML import is running. */
+    var importingBookmarks by mutableStateOf(false)
         private set
 
     fun onHomeIntent() {
@@ -76,6 +80,55 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
             "お気に入りに追加しました"
         } else {
             "すでに登録済みです"
+        }
+    }
+
+    /**
+     * Import bookmarks from a Netscape HTML export (flat into favorites).
+     * Duplicate URLs are skipped. Sets [shareHint] with the result.
+     */
+    fun importBookmarksFromUri(uri: Uri) {
+        if (importingBookmarks) return
+        viewModelScope.launch {
+            importingBookmarks = true
+            try {
+                val app = getApplication<Application>()
+                val items = withContext(Dispatchers.IO) {
+                    app.contentResolver.openInputStream(uri)?.use { stream ->
+                        BookmarkHtmlImporter.parse(stream)
+                    } ?: emptyList()
+                }
+                if (items.isEmpty()) {
+                    shareHint = "ブックマークが見つかりませんでした"
+                    return@launch
+                }
+                val existing = favorites
+                    .mapNotNull { (it as? FavoriteEntry.Web)?.url }
+                    .toHashSet()
+                val toAdd = items.filter { it.url !in existing }
+                if (toAdd.isEmpty()) {
+                    shareHint = "すべて登録済みです（${items.size} 件）"
+                    return@launch
+                }
+                favorites = favorites + toAdd.map { item ->
+                    FavoriteEntry.Web(
+                        id = UUID.randomUUID().toString(),
+                        title = item.title,
+                        url = item.url
+                    )
+                }
+                saveFavorites()
+                val skipped = items.size - toAdd.size
+                shareHint = if (skipped > 0) {
+                    "${toAdd.size} 件追加（${skipped} 件は登録済み）"
+                } else {
+                    "${toAdd.size} 件追加しました"
+                }
+            } catch (_: Exception) {
+                shareHint = "取り込みに失敗しました"
+            } finally {
+                importingBookmarks = false
+            }
         }
     }
 
