@@ -31,7 +31,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -367,9 +366,6 @@ private fun WidgetFrame(widgets: WidgetHostController, id: Int) {
     }
 }
 
-private val Green = Color(0xFF15C26B)
-
-@Composable
 private fun HomeCommandStrip(
     updateInfo: UpdateChecker.UpdateInfo?,
     onOpenUpdate: () -> Unit,
@@ -453,7 +449,7 @@ private fun HudHeader(unitCount: Int, onSwipeUp: () -> Unit) {
                 )
             }
             .cockpitPanel()
-            .padding(horizontal = 12.dp, vertical = 10.dp)
+            .padding(horizontal = 12.dp, vertical = 8.dp)
     ) {
         Column(Modifier.fillMaxWidth()) {
             // Top rail — callsign + energy
@@ -480,35 +476,14 @@ private fun HudHeader(unitCount: Int, onSwipeUp: () -> Unit) {
                 EnergyMeter(percent = battery)
             }
 
-            Spacer(Modifier.height(8.dp))
-
-            // Status lights
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                StatusDot(G.Yellow, "SYS")
-                Spacer(Modifier.width(10.dp))
-                StatusDot(Green, "COM")
-                Spacer(Modifier.width(10.dp))
-                StatusDot(G.Cyan, "NAV")
-                Spacer(Modifier.width(10.dp))
-                StatusDot(G.Blue, "THR")
-                Spacer(Modifier.weight(1f))
-                Text(
-                    text = if (battery in 0..15) "ENERGY LOW" else "ALL GREEN",
-                    color = if (battery in 0..15) G.Red else Green,
-                    fontSize = 9.sp,
-                    fontFamily = FontFamily.Monospace,
-                    letterSpacing = 1.sp
-                )
-            }
-
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(6.dp))
 
             // Main chronometer + unit mark
             Row(verticalAlignment = Alignment.Bottom) {
                 Box(
                     Modifier
                         .width(4.dp)
-                        .height(44.dp)
+                        .height(36.dp)
                         .background(G.Red)
                 )
                 Spacer(Modifier.width(10.dp))
@@ -523,7 +498,7 @@ private fun HudHeader(unitCount: Int, onSwipeUp: () -> Unit) {
                     Text(
                         text = time,
                         color = G.White,
-                        fontSize = 46.sp,
+                        fontSize = 40.sp,
                         fontWeight = FontWeight.Bold,
                         fontFamily = FontFamily.Monospace,
                         letterSpacing = 2.sp
@@ -539,22 +514,22 @@ private fun HudHeader(unitCount: Int, onSwipeUp: () -> Unit) {
                     Text(
                         text = "ZETA",
                         color = G.Cyan,
-                        fontSize = 18.sp,
+                        fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
                         fontFamily = FontFamily.Monospace,
-                        letterSpacing = 5.sp
+                        letterSpacing = 4.sp
                     )
                     Text(
                         text = "ORBITAL",
                         color = G.Blue,
-                        fontSize = 9.sp,
+                        fontSize = 8.sp,
                         fontFamily = FontFamily.Monospace,
                         letterSpacing = 2.sp
                     )
                 }
             }
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(6.dp))
 
             // Bottom data strip
             Row(
@@ -569,7 +544,7 @@ private fun HudHeader(unitCount: Int, onSwipeUp: () -> Unit) {
                             strokeWidth = 1.dp.toPx()
                         )
                     }
-                    .padding(top = 8.dp)
+                    .padding(top = 6.dp)
             ) {
                 Text(
                     text = date,
@@ -636,24 +611,6 @@ private fun EnergyMeter(percent: Int) {
             color = barColor,
             fontSize = 10.sp,
             fontWeight = FontWeight.Bold,
-            fontFamily = FontFamily.Monospace
-        )
-    }
-}
-
-@Composable
-private fun StatusDot(color: Color, label: String) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(
-            Modifier
-                .size(6.dp)
-                .background(color, CircleShape)
-        )
-        Spacer(Modifier.width(4.dp))
-        Text(
-            text = label,
-            color = G.Dim,
-            fontSize = 9.sp,
             fontFamily = FontFamily.Monospace
         )
     }
