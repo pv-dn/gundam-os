@@ -233,6 +233,8 @@ private fun HomeScreen(
                         isFavorite = true,
                         folders = folders,
                         currentFolder = vm.folderOf(app.packageName),
+                        displayName = vm.displayLabel(app),
+                        originalName = app.label,
                         onLaunch = { vm.launchApp(app.packageName) },
                         onToggleFavorite = { vm.toggleFavorite(app.packageName) },
                         onAddToFolder = { folderId -> vm.addToFolder(folderId, app.packageName) },
@@ -242,6 +244,8 @@ private fun HomeScreen(
                         onRemoveFromFolder = { folderId ->
                             vm.removeFromFolder(folderId, app.packageName)
                         },
+                        onRename = { name -> vm.setCustomLabel(app.packageName, name) },
+                        onResetName = { vm.clearCustomLabel(app.packageName) },
                         onMoveUp = if (index > 0) {
                             { vm.moveFavorite(app.packageName, -1) }
                         } else null,
@@ -549,12 +553,18 @@ private fun AllAppsScreen(
     val folders = vm.folders
     val shelved = vm.shelvedPackages
 
-    val filtered = remember(vm.apps, query) {
+    val filtered = remember(vm.apps, query, vm.customLabels) {
         if (query.isBlank()) vm.apps
-        else vm.apps.filter { it.label.contains(query.trim(), ignoreCase = true) }
+        else {
+            val q = query.trim()
+            vm.apps.filter {
+                vm.displayLabel(it).contains(q, ignoreCase = true) ||
+                    it.label.contains(q, ignoreCase = true)
+            }
+        }
     }
 
-    val rows = remember(filtered, query, favorites, folders, shelved) {
+    val rows = remember(filtered, query, favorites, folders, shelved, vm.customLabels) {
         if (query.isNotBlank()) {
             filtered.map { ListRow(header = null, app = it, folder = null) }
         } else {
@@ -564,9 +574,11 @@ private fun AllAppsScreen(
             val visible = filtered.filter { it.packageName !in shelved }
             val collator = java.text.Collator.getInstance(Locale.JAPAN)
             val grouped = visible
-                .groupBy { IndexLetter.of(it.label) }
+                .groupBy { IndexLetter.of(vm.displayLabel(it)) }
                 .toSortedMap(compareBy { ch -> if (ch == '#') Char.MAX_VALUE else ch })
-                .mapValues { (_, list) -> list.sortedWith(compareBy(collator) { it.label }) }
+                .mapValues { (_, list) ->
+                    list.sortedWith(compareBy(collator) { vm.displayLabel(it) })
+                }
             buildList {
                 if (favInList.isNotEmpty()) {
                     add(ListRow(FAV_HEADER, null, null))
@@ -658,6 +670,8 @@ private fun AllAppsScreen(
                                     isFavorite = vm.isFavorite(app.packageName),
                                     folders = folders,
                                     currentFolder = vm.folderOf(app.packageName),
+                                    displayName = vm.displayLabel(app),
+                                    originalName = app.label,
                                     onLaunch = { vm.launchApp(app.packageName) },
                                     onToggleFavorite = { vm.toggleFavorite(app.packageName) },
                                     onAddToFolder = { folderId ->
@@ -669,6 +683,8 @@ private fun AllAppsScreen(
                                     onRemoveFromFolder = { folderId ->
                                         vm.removeFromFolder(folderId, app.packageName)
                                     },
+                                    onRename = { name -> vm.setCustomLabel(app.packageName, name) },
+                                    onResetName = { vm.clearCustomLabel(app.packageName) },
                                     labelSize = 18.sp,
                                     iconSize = 30.dp
                                 )
@@ -856,12 +872,17 @@ private fun AppRow(
     onRemoveFromFolder: (String) -> Unit,
     labelSize: androidx.compose.ui.unit.TextUnit,
     iconSize: androidx.compose.ui.unit.Dp,
+    displayName: String = app.label,
+    originalName: String = app.label,
+    onRename: ((String) -> Unit)? = null,
+    onResetName: (() -> Unit)? = null,
     onMoveUp: (() -> Unit)? = null,
     onMoveDown: (() -> Unit)? = null,
 ) {
     var sheetOpen by remember { mutableStateOf(false) }
     var pickFolderOpen by remember { mutableStateOf(false) }
     var createNameOpen by remember { mutableStateOf(false) }
+    var renameOpen by remember { mutableStateOf(false) }
 
     Row(
         modifier = Modifier
@@ -875,13 +896,13 @@ private fun AppRow(
     ) {
         Image(
             bitmap = app.icon,
-            contentDescription = app.label,
+            contentDescription = displayName,
             modifier = Modifier.size(iconSize)
         )
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
             Text(
-                text = app.label,
+                text = displayName,
                 color = G.White,
                 fontSize = labelSize,
                 fontWeight = FontWeight.Medium,
@@ -940,6 +961,7 @@ private fun AppRow(
     if (sheetOpen) {
         AppActionSheet(
             app = app,
+            displayName = displayName,
             isFavorite = isFavorite,
             folders = folders,
             currentFolder = currentFolder,
@@ -952,6 +974,10 @@ private fun AppRow(
             },
             onRemoveFromFolder = {
                 currentFolder?.let { onRemoveFromFolder(it.id) }
+            },
+            onRename = {
+                sheetOpen = false
+                renameOpen = true
             },
             onMoveUp = onMoveUp,
             onMoveDown = onMoveDown,
@@ -980,6 +1006,23 @@ private fun AppRow(
             onConfirm = { name ->
                 createNameOpen = false
                 onCreateFolderWithApp(name)
+            }
+        )
+    }
+    if (renameOpen && onRename != null) {
+        RenameAppDialog(
+            currentName = displayName,
+            originalName = originalName,
+            onDismiss = { renameOpen = false },
+            onConfirm = { name ->
+                renameOpen = false
+                onRename(name)
+            },
+            onReset = onResetName?.let { reset ->
+                {
+                    renameOpen = false
+                    reset()
+                }
             }
         )
     }
@@ -1157,11 +1200,15 @@ private fun FolderScreen(
                         isFavorite = vm.isFavorite(app.packageName),
                         folders = vm.folders,
                         currentFolder = folder,
+                        displayName = vm.displayLabel(app),
+                        originalName = app.label,
                         onLaunch = { vm.launchApp(app.packageName) },
                         onToggleFavorite = { vm.toggleFavorite(app.packageName) },
                         onAddToFolder = { id -> vm.addToFolder(id, app.packageName) },
                         onCreateFolderWithApp = { name -> vm.createFolder(name, app.packageName) },
                         onRemoveFromFolder = { id -> vm.removeFromFolder(id, app.packageName) },
+                        onRename = { name -> vm.setCustomLabel(app.packageName, name) },
+                        onResetName = { vm.clearCustomLabel(app.packageName) },
                         labelSize = 18.sp,
                         iconSize = 30.dp
                     )
@@ -1213,6 +1260,78 @@ private fun FolderNameDialog(
                     .hudFrame()
                     .padding(12.dp)
             )
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(text) }) {
+                Text("OK", color = G.Cyan, fontFamily = FontFamily.Monospace)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("キャンセル", color = G.Dim, fontFamily = FontFamily.Monospace)
+            }
+        }
+    )
+}
+
+@Composable
+private fun RenameAppDialog(
+    currentName: String,
+    originalName: String,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit,
+    onReset: (() -> Unit)?,
+) {
+    var text by remember { mutableStateOf(currentName) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = G.PanelStrong,
+        title = {
+            Text(
+                "名前を変更",
+                color = G.White,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column {
+                Text(
+                    "元の名前: $originalName",
+                    color = G.Dim,
+                    fontSize = 12.sp,
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                BasicTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    singleLine = true,
+                    textStyle = androidx.compose.ui.text.TextStyle(
+                        color = G.White,
+                        fontSize = 16.sp,
+                        fontFamily = FontFamily.Monospace
+                    ),
+                    cursorBrush = SolidColor(G.Cyan),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .hudFrame()
+                        .padding(12.dp)
+                )
+                if (onReset != null && currentName != originalName) {
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        text = "元の名前に戻す",
+                        color = G.Cyan,
+                        fontSize = 14.sp,
+                        fontFamily = FontFamily.Monospace,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(onClick = onReset)
+                            .padding(vertical = 8.dp)
+                    )
+                }
+            }
         },
         confirmButton = {
             TextButton(onClick = { onConfirm(text) }) {

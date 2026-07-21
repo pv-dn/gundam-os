@@ -29,6 +29,10 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     var folders by mutableStateOf(loadFolders())
         private set
 
+    /** packageName → custom display name (launcher-only). */
+    var customLabels by mutableStateOf(loadCustomLabels())
+        private set
+
     var loading by mutableStateOf(true)
         private set
 
@@ -91,8 +95,36 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
                 saveFolders()
             }
 
+            val prunedLabels = customLabels.filterKeys { it in installed }
+            if (prunedLabels.size != customLabels.size) {
+                customLabels = prunedLabels
+                saveCustomLabels()
+            }
+
             loading = false
         }
+    }
+
+    fun displayLabel(app: AppInfo): String =
+        customLabels[app.packageName]?.takeIf { it.isNotBlank() } ?: app.label
+
+    fun displayLabel(pkg: String, fallback: String): String =
+        customLabels[pkg]?.takeIf { it.isNotBlank() } ?: fallback
+
+    fun setCustomLabel(pkg: String, name: String) {
+        val trimmed = name.trim()
+        customLabels = if (trimmed.isEmpty()) {
+            customLabels - pkg
+        } else {
+            customLabels + (pkg to trimmed)
+        }
+        saveCustomLabels()
+    }
+
+    fun clearCustomLabel(pkg: String) {
+        if (pkg !in customLabels) return
+        customLabels = customLabels - pkg
+        saveCustomLabels()
     }
 
     val favoriteApps: List<AppInfo>
@@ -266,9 +298,30 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         prefs.edit().putString(KEY_FOLDERS, encoded).apply()
     }
 
+    /** One line: packageName\tlabel */
+    private fun loadCustomLabels(): Map<String, String> {
+        val raw = prefs.getString(KEY_LABELS, "").orEmpty()
+        if (raw.isBlank()) return emptyMap()
+        return raw.lineSequence().mapNotNull { line ->
+            val tab = line.indexOf('\t')
+            if (tab <= 0) return@mapNotNull null
+            val pkg = line.substring(0, tab).trim()
+            val name = line.substring(tab + 1).trim()
+            if (pkg.isEmpty() || name.isEmpty()) null else pkg to name
+        }.toMap()
+    }
+
+    private fun saveCustomLabels() {
+        val encoded = customLabels.entries.joinToString("\n") { (pkg, name) ->
+            "$pkg\t${name.replace('\n', ' ').replace('\t', ' ')}"
+        }
+        prefs.edit().putString(KEY_LABELS, encoded).apply()
+    }
+
     companion object {
         private const val PREFS = "gundam_launcher"
         private const val KEY_FAV = "favorites"
         private const val KEY_FOLDERS = "folders"
+        private const val KEY_LABELS = "custom_labels"
     }
 }

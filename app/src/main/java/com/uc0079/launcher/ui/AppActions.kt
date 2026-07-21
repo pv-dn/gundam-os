@@ -90,6 +90,7 @@ fun MenuDotsButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
 @Composable
 fun AppActionSheet(
     app: AppInfo,
+    displayName: String,
     isFavorite: Boolean,
     folders: List<AppFolder>,
     currentFolder: AppFolder?,
@@ -98,6 +99,7 @@ fun AppActionSheet(
     onToggleFavorite: () -> Unit,
     onAddToFolder: () -> Unit,
     onRemoveFromFolder: () -> Unit,
+    onRename: () -> Unit,
     onMoveUp: (() -> Unit)? = null,
     onMoveDown: (() -> Unit)? = null,
 ) {
@@ -118,7 +120,7 @@ fun AppActionSheet(
                     )
                     Spacer(Modifier.width(12.dp))
                     Text(
-                        text = app.label,
+                        text = displayName,
                         color = G.White,
                         fontSize = 17.sp,
                         fontWeight = FontWeight.Bold,
@@ -151,6 +153,10 @@ fun AppActionSheet(
                             onDismiss()
                             onMoveDown()
                         }
+                    }
+                    ActionLine("\u270E  名前を変更", G.White) {
+                        onDismiss()
+                        onRename()
                     }
                     ActionLine("\u25A3  フォルダにしまう", G.White) {
                         onDismiss()
@@ -191,7 +197,7 @@ fun AppActionSheet(
             },
             text = {
                 Text(
-                    "「${app.label}」を削除します。\n次の画面で「アンインストール」を押してください。",
+                    "「${displayName}」を削除します。\n次の画面で「アンインストール」を押してください。",
                     color = G.Dim,
                     fontSize = 14.sp
                 )
@@ -200,7 +206,6 @@ fun AppActionSheet(
                 TextButton(onClick = {
                     val pkg = app.packageName
                     onDismiss()
-                    // Post after dialog teardown so the system UI can take focus.
                     android.os.Handler(android.os.Looper.getMainLooper()).post {
                         context.openUninstall(pkg)
                     }
@@ -335,7 +340,7 @@ fun HelpSheet(
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
                 HelpLine("タップ … アプリを起動")
-                HelpLine("右の ⋮ … お気に入り・フォルダ・アンインストール")
+                HelpLine("右の ⋮ … 名前変更・お気に入り・フォルダ・アンインストール")
                 HelpLine("長押し … ⋮ と同じメニュー")
                 HelpLine("お気に入りの ▲▼ … 順番を入れ替え")
                 HelpLine("セクション右の ＋ … ウィジェット／フォルダ追加")
