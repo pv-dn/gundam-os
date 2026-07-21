@@ -20,17 +20,33 @@ class MainActivity : ComponentActivity() {
         setContent {
             LauncherApp(vm, widgets)
         }
+        handleShareIntent(intent)
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        if (handleShareIntent(intent)) return
         // Home button while already in the launcher (e.g. all-apps screen).
         if (intent.hasCategory(Intent.CATEGORY_HOME) ||
             intent.action == Intent.ACTION_MAIN
         ) {
             vm.onHomeIntent()
         }
+    }
+
+    /** @return true if this was a share intent we handled. */
+    private fun handleShareIntent(intent: Intent?): Boolean {
+        if (intent?.action != Intent.ACTION_SEND) return false
+        if (intent.type?.startsWith("text/") != true) return false
+        val text = intent.getStringExtra(Intent.EXTRA_TEXT)
+        val subject = intent.getStringExtra(Intent.EXTRA_SUBJECT)
+        vm.handleSharedText(text, subject)
+        // Consume so rotation / resume doesn't re-add.
+        intent.action = Intent.ACTION_MAIN
+        intent.removeExtra(Intent.EXTRA_TEXT)
+        intent.removeExtra(Intent.EXTRA_SUBJECT)
+        return true
     }
 
     override fun onStart() {

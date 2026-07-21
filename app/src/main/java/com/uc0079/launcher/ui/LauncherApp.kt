@@ -63,10 +63,12 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.uc0079.launcher.AppFolder
 import com.uc0079.launcher.AppInfo
+import com.uc0079.launcher.FavoriteEntry
 import com.uc0079.launcher.IndexLetter
 import com.uc0079.launcher.LauncherViewModel
 import com.uc0079.launcher.UpdateChecker
 import com.uc0079.launcher.WidgetHostController
+import android.widget.Toast
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
@@ -89,6 +91,15 @@ fun LauncherApp(vm: LauncherViewModel, widgets: WidgetHostController) {
                 openFolderId = null
                 screen = Screen.HOME
             }
+        }
+
+        // Share / add-web feedback.
+        val shareHint = vm.shareHint
+        LaunchedEffect(shareHint) {
+            val msg = shareHint ?: return@LaunchedEffect
+            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+            vm.consumeShareHint()
+            screen = Screen.HOME
         }
 
         // Update dialog only when user taps the home banner (not auto-popup).
@@ -173,13 +184,15 @@ private fun HomeScreen(
     onOpenFolder: (String) -> Unit,
     onOpenUpdate: () -> Unit,
 ) {
-    val favorites = vm.favoriteApps
+    val favorites = vm.favorites
     val folders = vm.folders
     val scroll = rememberScrollState()
     var createFolderOpen by remember { mutableStateOf(false) }
     var renameFolder by remember { mutableStateOf<AppFolder?>(null) }
     var helpOpen by remember { mutableStateOf(false) }
+    var addWebOpen by remember { mutableStateOf(false) }
     val updateInfo = vm.updateInfo
+    val appsByPkg = remember(vm.apps) { vm.apps.associateBy { it.packageName } }
 
     Column(
         modifier = Modifier
@@ -227,45 +240,67 @@ private fun HomeScreen(
             }
 
             Spacer(Modifier.height(22.dp))
-            SectionLabel("FAVORITE UNITS / お気に入り")
+            SectionLabel(
+                text = "FAVORITE UNITS / お気に入り",
+                onAdd = { addWebOpen = true }
+            )
             Spacer(Modifier.height(6.dp))
             if (favorites.isEmpty()) {
                 Text(
-                    text = "登録なし — [ALL UNITS] を開き、\nアプリ右の ⋮ から「お気に入りに追加」",
+                    text = "登録なし — 右の ＋ で Web 追加、\nまたは [ALL UNITS] の ⋮ からアプリを追加",
                     color = G.Dim,
                     fontSize = 13.sp,
                     fontFamily = FontFamily.Monospace,
                     modifier = Modifier.padding(top = 8.dp)
                 )
             } else {
-                favorites.forEachIndexed { index, app ->
-                    AppRow(
-                        app = app,
-                        isFavorite = true,
-                        folders = folders,
-                        currentFolder = vm.folderOf(app.packageName),
-                        displayName = vm.displayLabel(app),
-                        originalName = app.label,
-                        onLaunch = { vm.launchApp(app.packageName) },
-                        onToggleFavorite = { vm.toggleFavorite(app.packageName) },
-                        onAddToFolder = { folderId -> vm.addToFolder(folderId, app.packageName) },
-                        onCreateFolderWithApp = { name ->
-                            vm.createFolder(name, app.packageName)
-                        },
-                        onRemoveFromFolder = { folderId ->
-                            vm.removeFromFolder(folderId, app.packageName)
-                        },
-                        onRename = { name -> vm.setCustomLabel(app.packageName, name) },
-                        onResetName = { vm.clearCustomLabel(app.packageName) },
-                        onMoveUp = if (index > 0) {
-                            { vm.moveFavorite(app.packageName, -1) }
-                        } else null,
-                        onMoveDown = if (index < favorites.lastIndex) {
-                            { vm.moveFavorite(app.packageName, +1) }
-                        } else null,
-                        labelSize = 18.sp,
-                        iconSize = 28.dp
-                    )
+                favorites.forEachIndexed { index, entry ->
+                    when (entry) {
+                        is FavoriteEntry.App -> {
+                            val app = appsByPkg[entry.packageName] ?: return@forEachIndexed
+                            AppRow(
+                                app = app,
+                                isFavorite = true,
+                                folders = folders,
+                                currentFolder = vm.folderOf(app.packageName),
+                                displayName = vm.displayLabel(app),
+                                originalName = app.label,
+                                onLaunch = { vm.launchApp(app.packageName) },
+                                onToggleFavorite = { vm.toggleFavorite(app.packageName) },
+                                onAddToFolder = { folderId -> vm.addToFolder(folderId, app.packageName) },
+                                onCreateFolderWithApp = { name ->
+                                    vm.createFolder(name, app.packageName)
+                                },
+                                onRemoveFromFolder = { folderId ->
+                                    vm.removeFromFolder(folderId, app.packageName)
+                                },
+                                onRename = { name -> vm.setCustomLabel(app.packageName, name) },
+                                onResetName = { vm.clearCustomLabel(app.packageName) },
+                                onMoveUp = if (index > 0) {
+                                    { vm.moveFavoriteAt(index, -1) }
+                                } else null,
+                                onMoveDown = if (index < favorites.lastIndex) {
+                                    { vm.moveFavoriteAt(index, +1) }
+                                } else null,
+                                labelSize = 18.sp,
+                                iconSize = 28.dp
+                            )
+                        }
+                        is FavoriteEntry.Web -> {
+                            WebFavoriteRow(
+                                web = entry,
+                                onOpen = { vm.openUrl(entry.url) },
+                                onRename = { name -> vm.renameWebFavorite(entry.id, name) },
+                                onDelete = { vm.removeWebFavorite(entry.id) },
+                                onMoveUp = if (index > 0) {
+                                    { vm.moveFavoriteAt(index, -1) }
+                                } else null,
+                                onMoveDown = if (index < favorites.lastIndex) {
+                                    { vm.moveFavoriteAt(index, +1) }
+                                } else null,
+                            )
+                        }
+                    }
                 }
             }
 
@@ -298,6 +333,20 @@ private fun HomeScreen(
 
         AllUnitsButton(onOpenAll)
         Spacer(Modifier.height(10.dp))
+    }
+
+    if (addWebOpen) {
+        AddWebFavoriteDialog(
+            onDismiss = { addWebOpen = false },
+            onConfirm = { title, url ->
+                if (vm.addWebFavorite(title, url)) {
+                    addWebOpen = false
+                    true
+                } else {
+                    false
+                }
+            }
+        )
     }
 
     if (createFolderOpen) {
@@ -659,7 +708,9 @@ private fun AllUnitsButton(onOpenAll: () -> Unit) {
 private data class ListRow(
     val header: Char?,
     val app: AppInfo?,
-    val folder: AppFolder? = null
+    val folder: AppFolder? = null,
+    val web: FavoriteEntry.Web? = null,
+    val favIndex: Int = -1,
 )
 
 /** Header marker for the favorites block pinned above A–Z. */
@@ -679,9 +730,10 @@ private fun AllAppsScreen(
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
 
-    val favorites = vm.favoriteApps
+    val favorites = vm.favorites
     val folders = vm.folders
     val shelved = vm.shelvedPackages
+    val appsByPkg = remember(vm.apps) { vm.apps.associateBy { it.packageName } }
 
     val filtered = remember(vm.apps, query, vm.customLabels) {
         if (query.isBlank()) vm.apps
@@ -694,12 +746,23 @@ private fun AllAppsScreen(
         }
     }
 
-    val rows = remember(filtered, query, favorites, folders, shelved, vm.customLabels) {
+    val rows = remember(filtered, query, favorites, folders, shelved, vm.customLabels, appsByPkg) {
         if (query.isNotBlank()) {
             filtered.map { ListRow(header = null, app = it, folder = null) }
         } else {
-            val favInList = favorites.filter { fav ->
-                filtered.any { it.packageName == fav.packageName }
+            val favRows = favorites.mapIndexedNotNull { index, entry ->
+                when (entry) {
+                    is FavoriteEntry.App -> {
+                        val app = appsByPkg[entry.packageName] ?: return@mapIndexedNotNull null
+                        if (filtered.none { it.packageName == app.packageName }) {
+                            return@mapIndexedNotNull null
+                        }
+                        ListRow(header = null, app = app, favIndex = index)
+                    }
+                    is FavoriteEntry.Web -> {
+                        ListRow(header = null, app = null, web = entry, favIndex = index)
+                    }
+                }
             }
             val visible = filtered.filter { it.packageName !in shelved }
             val collator = java.text.Collator.getInstance(Locale.JAPAN)
@@ -710,9 +773,9 @@ private fun AllAppsScreen(
                     list.sortedWith(compareBy(collator) { vm.displayLabel(it) })
                 }
             buildList {
-                if (favInList.isNotEmpty()) {
+                if (favRows.isNotEmpty()) {
                     add(ListRow(FAV_HEADER, null, null))
-                    favInList.forEach { add(ListRow(null, it, null)) }
+                    addAll(favRows)
                 }
                 if (folders.isNotEmpty()) {
                     add(ListRow(FOLDER_HEADER, null, null))
@@ -793,8 +856,25 @@ private fun AllAppsScreen(
                                     onDelete = { vm.deleteFolder(folder.id) }
                                 )
                             }
+                            row.web != null -> {
+                                val web = row.web
+                                val idx = row.favIndex
+                                WebFavoriteRow(
+                                    web = web,
+                                    onOpen = { vm.openUrl(web.url) },
+                                    onRename = { name -> vm.renameWebFavorite(web.id, name) },
+                                    onDelete = { vm.removeWebFavorite(web.id) },
+                                    onMoveUp = if (idx > 0) {
+                                        { vm.moveFavoriteAt(idx, -1) }
+                                    } else null,
+                                    onMoveDown = if (idx >= 0 && idx < favorites.lastIndex) {
+                                        { vm.moveFavoriteAt(idx, +1) }
+                                    } else null,
+                                )
+                            }
                             row.app != null -> {
                                 val app = row.app
+                                val favIdx = row.favIndex
                                 AppRow(
                                     app = app,
                                     isFavorite = vm.isFavorite(app.packageName),
@@ -815,6 +895,12 @@ private fun AllAppsScreen(
                                     },
                                     onRename = { name -> vm.setCustomLabel(app.packageName, name) },
                                     onResetName = { vm.clearCustomLabel(app.packageName) },
+                                    onMoveUp = if (favIdx > 0) {
+                                        { vm.moveFavoriteAt(favIdx, -1) }
+                                    } else null,
+                                    onMoveDown = if (favIdx >= 0 && favIdx < favorites.lastIndex) {
+                                        { vm.moveFavoriteAt(favIdx, +1) }
+                                    } else null,
                                     labelSize = 18.sp,
                                     iconSize = 30.dp
                                 )
@@ -987,6 +1073,197 @@ private fun AlphabetScroller(
 /* ------------------------------------------------------------------ */
 /* APP ROW + FOLDERS                                                   */
 /* ------------------------------------------------------------------ */
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun WebFavoriteRow(
+    web: FavoriteEntry.Web,
+    onOpen: () -> Unit,
+    onRename: (String) -> Unit,
+    onDelete: () -> Unit,
+    onMoveUp: (() -> Unit)? = null,
+    onMoveDown: (() -> Unit)? = null,
+) {
+    var sheetOpen by remember { mutableStateOf(false) }
+    var renameOpen by remember { mutableStateOf(false) }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .combinedClickable(
+                onClick = onOpen,
+                onLongClick = { sheetOpen = true }
+            )
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            Modifier
+                .size(28.dp)
+                .hudFrame(fill = G.PanelStrong, bracket = G.Cyan),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "\u2609",
+                color = G.Cyan,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = web.title,
+                color = G.White,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = web.url,
+                color = G.Dim,
+                fontSize = 11.sp,
+                fontFamily = FontFamily.Monospace,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        Text(text = "\u2605", color = G.Yellow, fontSize = 12.sp)
+        Spacer(Modifier.width(4.dp))
+        MenuDotsButton(onClick = { sheetOpen = true })
+    }
+
+    if (sheetOpen) {
+        WebActionSheet(
+            title = web.title,
+            url = web.url,
+            onDismiss = { sheetOpen = false },
+            onOpen = onOpen,
+            onRename = {
+                sheetOpen = false
+                renameOpen = true
+            },
+            onDelete = onDelete,
+            onMoveUp = onMoveUp,
+            onMoveDown = onMoveDown,
+        )
+    }
+
+    if (renameOpen) {
+        FolderNameDialog(
+            title = "Web の名前を変更",
+            initial = web.title,
+            onDismiss = { renameOpen = false },
+            onConfirm = { name ->
+                renameOpen = false
+                onRename(name)
+            }
+        )
+    }
+}
+
+@Composable
+private fun AddWebFavoriteDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (title: String, url: String) -> Boolean,
+) {
+    var title by remember { mutableStateOf("") }
+    var url by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf<String?>(null) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = G.Dialog,
+        title = {
+            Text(
+                "Web を追加",
+                color = G.White,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column {
+                Text(
+                    "タイトル（任意）",
+                    color = G.Dim,
+                    fontSize = 12.sp,
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+                BasicTextField(
+                    value = title,
+                    onValueChange = { title = it },
+                    singleLine = true,
+                    textStyle = androidx.compose.ui.text.TextStyle(
+                        color = G.White,
+                        fontSize = 16.sp,
+                        fontFamily = FontFamily.Monospace
+                    ),
+                    cursorBrush = SolidColor(G.Cyan),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .hudFrame()
+                        .padding(12.dp)
+                )
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    "URL",
+                    color = G.Dim,
+                    fontSize = 12.sp,
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+                BasicTextField(
+                    value = url,
+                    onValueChange = {
+                        url = it
+                        error = null
+                    },
+                    singleLine = true,
+                    textStyle = androidx.compose.ui.text.TextStyle(
+                        color = G.White,
+                        fontSize = 16.sp,
+                        fontFamily = FontFamily.Monospace
+                    ),
+                    cursorBrush = SolidColor(G.Cyan),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .hudFrame()
+                        .padding(12.dp)
+                )
+                error?.let {
+                    Text(
+                        it,
+                        color = G.Red,
+                        fontSize = 12.sp,
+                        fontFamily = FontFamily.Monospace,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                if (LauncherViewModel.normalizeUrl(url) == null) {
+                    error = "有効な URL を入力してください"
+                    return@TextButton
+                }
+                if (!onConfirm(title, url)) {
+                    error = "すでに登録済みです"
+                }
+            }) {
+                Text("追加", color = G.Cyan, fontFamily = FontFamily.Monospace)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("キャンセル", color = G.Dim, fontFamily = FontFamily.Monospace)
+            }
+        }
+    )
+}
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable

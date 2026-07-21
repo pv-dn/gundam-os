@@ -47,8 +47,36 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     var homePulse by mutableStateOf(0)
         private set
 
+    /** One-shot toast after browser Share → Z GUNDAM OS. */
+    var shareHint by mutableStateOf<String?>(null)
+        private set
+
     fun onHomeIntent() {
         homePulse++
+    }
+
+    fun consumeShareHint() {
+        shareHint = null
+    }
+
+    /** Handle ACTION_SEND text/plain (browser Share). */
+    fun handleSharedText(text: String?, subject: String?) {
+        val raw = text?.trim().orEmpty()
+        if (raw.isEmpty()) {
+            shareHint = "URL が見つかりません"
+            return
+        }
+        val normalized = normalizeUrl(raw)
+        if (normalized == null) {
+            shareHint = "有効な URL ではありません"
+            return
+        }
+        val title = subject?.trim()?.takeIf { it.isNotBlank() } ?: hostLabel(normalized)
+        shareHint = if (addWebFavorite(title, normalized)) {
+            "お気に入りに追加しました"
+        } else {
+            "すでに登録済みです"
+        }
     }
 
     init {
@@ -81,7 +109,13 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
             apps = loaded
             val installed = loaded.mapTo(HashSet()) { it.packageName }
 
-            val prunedFav = favorites.filter { it in installed }
+            // Only prune uninstalled apps; keep web bookmarks.
+            val prunedFav = favorites.filter { entry ->
+                when (entry) {
+                    is FavoriteEntry.App -> entry.packageName in installed
+                    is FavoriteEntry.Web -> true
+                }
+            }
             if (prunedFav.size != favorites.size) {
                 favorites = prunedFav
                 saveFavorites()
@@ -127,11 +161,17 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         saveCustomLabels()
     }
 
+    /** App favorites only (for places that need AppInfo). */
     val favoriteApps: List<AppInfo>
         get() {
             val byPkg = apps.associateBy { it.packageName }
-            return favorites.mapNotNull { byPkg[it] }
+            return favorites.mapNotNull { entry ->
+                (entry as? FavoriteEntry.App)?.let { byPkg[it.packageName] }
+            }
         }
+
+    fun appForFavorite(entry: FavoriteEntry.App): AppInfo? =
+        apps.firstOrNull { it.packageName == entry.packageName }
 
     /** Packages currently stored inside any folder (hidden from A–Z). */
     val shelvedPackages: Set<String>
@@ -146,24 +186,64 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     fun folderOf(pkg: String): AppFolder? =
         folders.firstOrNull { pkg in it.packageNames }
 
-    fun isFavorite(pkg: String): Boolean = pkg in favorites
+    fun isFavorite(pkg: String): Boolean =
+        favorites.any { it is FavoriteEntry.App && it.packageName == pkg }
 
     fun toggleFavorite(pkg: String) {
-        favorites = if (pkg in favorites) favorites - pkg else favorites + pkg
+        favorites = if (isFavorite(pkg)) {
+            favorites.filterNot { it is FavoriteEntry.App && it.packageName == pkg }
+        } else {
+            favorites + FavoriteEntry.App(pkg)
+        }
         saveFavorites()
     }
 
-    /** Move a favorite up (delta=-1) or down (delta=+1). No-op at ends. */
-    fun moveFavorite(pkg: String, delta: Int) {
-        val i = favorites.indexOf(pkg)
-        if (i < 0) return
-        val j = (i + delta).coerceIn(0, favorites.lastIndex)
-        if (i == j) return
+    /** Move any favorite (app or web) by list index. */
+    fun moveFavoriteAt(index: Int, delta: Int) {
+        if (index !in favorites.indices) return
+        val j = (index + delta).coerceIn(0, favorites.lastIndex)
+        if (index == j) return
         val mutable = favorites.toMutableList()
-        val item = mutable.removeAt(i)
+        val item = mutable.removeAt(index)
         mutable.add(j, item)
         favorites = mutable
         saveFavorites()
+    }
+
+    fun addWebFavorite(title: String, url: String): Boolean {
+        val normalized = normalizeUrl(url) ?: return false
+        // Avoid duplicates by URL.
+        if (favorites.any { it is FavoriteEntry.Web && it.url == normalized }) return false
+        val name = title.trim().ifBlank { hostLabel(normalized) }
+        favorites = favorites + FavoriteEntry.Web(
+            id = UUID.randomUUID().toString(),
+            title = name,
+            url = normalized
+        )
+        saveFavorites()
+        return true
+    }
+
+    fun removeWebFavorite(id: String) {
+        favorites = favorites.filterNot { it is FavoriteEntry.Web && it.id == id }
+        saveFavorites()
+    }
+
+    fun renameWebFavorite(id: String, title: String) {
+        val trimmed = title.trim().ifBlank { return }
+        favorites = favorites.map { entry ->
+            if (entry is FavoriteEntry.Web && entry.id == id) entry.copy(title = trimmed)
+            else entry
+        }
+        saveFavorites()
+    }
+
+    fun openUrl(url: String) {
+        val uri = runCatching { Uri.parse(url) }.getOrNull() ?: return
+        val intent = Intent(Intent.ACTION_VIEW, uri).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        runCatching { getApplication<Application>().startActivity(intent) }
     }
 
     fun createFolder(name: String, initialPkg: String? = null): AppFolder {
@@ -172,7 +252,6 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
             name = name.trim().ifBlank { "FOLDER" },
             packageNames = listOfNotNull(initialPkg)
         )
-        // If the app was already in another folder, move it out first.
         val cleaned = if (initialPkg != null) {
             folders.map { f ->
                 f.copy(packageNames = f.packageNames.filter { it != initialPkg })
@@ -181,9 +260,10 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
             folders
         }
         folders = cleaned + folder
-        // Putting in a folder removes from home favorites (it's "stored away").
-        if (initialPkg != null && initialPkg in favorites) {
-            favorites = favorites - initialPkg
+        if (initialPkg != null && isFavorite(initialPkg)) {
+            favorites = favorites.filterNot {
+                it is FavoriteEntry.App && it.packageName == initialPkg
+            }
             saveFavorites()
         }
         saveFolders()
@@ -204,7 +284,6 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun addToFolder(folderId: String, pkg: String) {
-        // Remove from any other folder first (one folder per app).
         folders = folders.map { f ->
             when {
                 f.id == folderId && pkg !in f.packageNames ->
@@ -215,8 +294,10 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
             }
         }.filter { it.packageNames.isNotEmpty() || it.id == folderId }
 
-        if (pkg in favorites) {
-            favorites = favorites - pkg
+        if (isFavorite(pkg)) {
+            favorites = favorites.filterNot {
+                it is FavoriteEntry.App && it.packageName == pkg
+            }
             saveFavorites()
         }
         saveFolders()
@@ -260,20 +341,18 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         runCatching { getApplication<Application>().startActivity(intent) }
     }
 
-    private fun loadFavorites(): List<String> {
+    private fun loadFavorites(): List<FavoriteEntry> {
         val raw = prefs.getString(KEY_FAV, "").orEmpty()
-        return if (raw.isBlank()) emptyList()
-        else raw.split("\n").filter { it.isNotBlank() }
+        if (raw.isBlank()) return emptyList()
+        return raw.lineSequence().mapNotNull { FavoriteEntry.decode(it) }.toList()
     }
 
     private fun saveFavorites() {
-        prefs.edit().putString(KEY_FAV, favorites.joinToString("\n")).apply()
+        prefs.edit()
+            .putString(KEY_FAV, favorites.joinToString("\n") { it.encode() })
+            .apply()
     }
 
-    /**
-     * One folder per line: id|name|pkg1,pkg2
-     * Pipes in names are replaced with spaces on save.
-     */
     private fun loadFolders(): List<AppFolder> {
         val raw = prefs.getString(KEY_FOLDERS, "").orEmpty()
         if (raw.isBlank()) return emptyList()
@@ -298,7 +377,6 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         prefs.edit().putString(KEY_FOLDERS, encoded).apply()
     }
 
-    /** One line: packageName\tlabel */
     private fun loadCustomLabels(): Map<String, String> {
         val raw = prefs.getString(KEY_LABELS, "").orEmpty()
         if (raw.isBlank()) return emptyMap()
@@ -323,5 +401,29 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         private const val KEY_FAV = "favorites"
         private const val KEY_FOLDERS = "folders"
         private const val KEY_LABELS = "custom_labels"
+
+        fun normalizeUrl(raw: String): String? {
+            var s = raw.trim()
+            if (s.isEmpty()) return null
+            // Prefer first http(s) URL if text contains more than a URL.
+            val match = Regex("""https?://[^\s<>"']+""", RegexOption.IGNORE_CASE)
+                .find(s)
+            if (match != null) {
+                s = match.value.trimEnd('.', ',', ';', ')', ']')
+            } else if (!s.contains("://")) {
+                if (!s.contains('.') || s.contains(' ')) return null
+                s = "https://$s"
+            }
+            val uri = runCatching { Uri.parse(s) }.getOrNull() ?: return null
+            if (uri.scheme !in listOf("http", "https")) return null
+            if (uri.host.isNullOrBlank()) return null
+            return s
+        }
+
+        fun hostLabel(url: String): String =
+            runCatching { Uri.parse(url).host?.removePrefix("www.") }
+                .getOrNull()
+                ?.takeIf { it.isNotBlank() }
+                ?: "WEB"
     }
 }

@@ -237,6 +237,109 @@ private fun ActionLine(label: String, color: androidx.compose.ui.graphics.Color,
 }
 
 @Composable
+fun WebActionSheet(
+    title: String,
+    url: String,
+    onDismiss: () -> Unit,
+    onOpen: () -> Unit,
+    onRename: () -> Unit,
+    onDelete: () -> Unit,
+    onMoveUp: (() -> Unit)? = null,
+    onMoveDown: (() -> Unit)? = null,
+) {
+    var confirmDelete by remember { mutableStateOf(false) }
+
+    if (!confirmDelete) {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            containerColor = G.Dialog,
+            title = {
+                Column {
+                    Text(
+                        text = "\u2609  $title",
+                        color = G.White,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = url,
+                        color = G.Dim,
+                        fontSize = 12.sp,
+                        fontFamily = FontFamily.Monospace,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+            },
+            text = {
+                Column {
+                    ActionLine("\u25B6  開く", G.White) {
+                        onDismiss()
+                        onOpen()
+                    }
+                    if (onMoveUp != null) {
+                        ActionLine("\u25B2  お気に入りで上へ", G.Cyan) {
+                            onDismiss()
+                            onMoveUp()
+                        }
+                    }
+                    if (onMoveDown != null) {
+                        ActionLine("\u25BC  お気に入りで下へ", G.Cyan) {
+                            onDismiss()
+                            onMoveDown()
+                        }
+                    }
+                    ActionLine("\u270E  名前を変更", G.White) {
+                        onDismiss()
+                        onRename()
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    ActionLine("\u2715  削除", G.Red) {
+                        confirmDelete = true
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = onDismiss) {
+                    Text("閉じる", color = G.Dim, fontFamily = FontFamily.Monospace)
+                }
+            }
+        )
+    } else {
+        AlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            containerColor = G.Dialog,
+            title = { Text("Web を削除", color = G.White, fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    "「$title」をお気に入りから削除します。",
+                    color = G.Dim,
+                    fontSize = 14.sp
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmDelete = false
+                    onDismiss()
+                    onDelete()
+                }) {
+                    Text("削除", color = G.Red, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmDelete = false }) {
+                    Text("キャンセル", color = G.Dim)
+                }
+            }
+        )
+    }
+}
+
+@Composable
 fun FolderActionSheet(
     folder: AppFolder,
     onDismiss: () -> Unit,
@@ -343,6 +446,8 @@ fun HelpSheet(
                 HelpLine("右の ⋮ … 名前変更・お気に入り・フォルダ・アンインストール")
                 HelpLine("長押し … ⋮ と同じメニュー")
                 HelpLine("お気に入りの ⋮ … 上へ／下へで順番変更")
+                HelpLine("お気に入り右の ＋ … Web リンク追加")
+                HelpLine("ブラウザの共有 → Z GUNDAM OS … Web をお気に入りへ")
                 HelpLine("セクション右の ＋ … ウィジェット／フォルダ追加")
                 HelpLine("ヘッダー下 MENU … 使い方・更新確認・ランチャー設定")
                 HelpLine("UPDATE 表示 … タップでダウンロード")
