@@ -259,8 +259,8 @@ private fun HomeScreen(
                         onMoveDown = if (index < favorites.lastIndex) {
                             { vm.moveFavorite(app.packageName, +1) }
                         } else null,
-                        labelSize = 22.sp,
-                        iconSize = 34.dp
+                        labelSize = 18.sp,
+                        iconSize = 28.dp
                     )
                 }
             }
