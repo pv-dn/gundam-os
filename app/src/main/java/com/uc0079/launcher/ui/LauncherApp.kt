@@ -580,7 +580,7 @@ private fun HudHeader(
                         .background(G.Red)
                 )
                 Spacer(Modifier.width(10.dp))
-                Column(Modifier = Modifier.weight(1f)) {
+                Column(Modifier.weight(1f)) {
                     Text(
                         text = "MISSION TIME",
                         color = G.Dim,
