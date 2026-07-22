@@ -8,6 +8,7 @@ import android.os.BatteryManager
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -51,8 +52,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
@@ -60,6 +68,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -562,16 +571,16 @@ private fun HudHeader(
 
             Spacer(Modifier.height(6.dp))
 
-            // Main chronometer + unit mark + MENU
-            Row(verticalAlignment = Alignment.Bottom) {
+            // Main chronometer + AEUG / ZETA mark
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     Modifier
                         .width(4.dp)
-                        .height(36.dp)
+                        .height(44.dp)
                         .background(G.Red)
                 )
                 Spacer(Modifier.width(10.dp))
-                Column {
+                Column(Modifier = Modifier.weight(1f)) {
                     Text(
                         text = "MISSION TIME",
                         color = G.Dim,
@@ -588,29 +597,8 @@ private fun HudHeader(
                         letterSpacing = 2.sp
                     )
                 }
-                Spacer(Modifier.weight(1f))
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        text = "\u30BC\u30FC\u30BF\u30AC\u30F3\u30C0\u30E0",
-                        color = G.Dim,
-                        fontSize = 9.sp
-                    )
-                    Text(
-                        text = "ZETA",
-                        color = G.Cyan,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Monospace,
-                        letterSpacing = 4.sp
-                    )
-                    Text(
-                        text = "ORBITAL",
-                        color = G.Blue,
-                        fontSize = 8.sp,
-                        fontFamily = FontFamily.Monospace,
-                        letterSpacing = 2.sp
-                    )
-                }
+                Spacer(Modifier.width(8.dp))
+                ZetaBrandMark()
             }
 
             Spacer(Modifier.height(6.dp))
@@ -672,6 +660,180 @@ private fun HudHeader(
                 )
             }
         }
+    }
+}
+
+/**
+ * AEUG unit mark + ZETA wordmark.
+ * Emblem geometry follows the classic AEUG silhouette
+ * (blue Earth, yellow Moon, white ring, red ellipse) — HUD tribute, not an official asset.
+ */
+@Composable
+private fun ZetaBrandMark() {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.End
+    ) {
+        AeugEmblem(size = 52.dp)
+        Spacer(Modifier.width(8.dp))
+        Column(horizontalAlignment = Alignment.Start) {
+            Text(
+                text = "A.E.U.G.",
+                color = G.Yellow,
+                fontSize = 8.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace,
+                letterSpacing = 2.sp
+            )
+            Text(
+                text = "ZETA",
+                color = G.White,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Black,
+                fontFamily = FontFamily.Monospace,
+                letterSpacing = 3.sp,
+                maxLines = 1,
+                softWrap = false,
+                modifier = Modifier
+                    .graphicsLayer { rotationZ = -6f }
+                    .drawBehind {
+                        val y = size.height - 1.dp.toPx()
+                        drawLine(
+                            color = G.Cyan.copy(alpha = 0.85f),
+                            start = Offset(0f, y),
+                            end = Offset(size.width * 0.92f, y),
+                            strokeWidth = 2.dp.toPx(),
+                            cap = StrokeCap.Square
+                        )
+                        drawLine(
+                            color = G.Red,
+                            start = Offset(size.width * 0.92f, y),
+                            end = Offset(size.width, y),
+                            strokeWidth = 2.dp.toPx(),
+                            cap = StrokeCap.Square
+                        )
+                    }
+            )
+            Text(
+                text = "MSZ-006  ORBITAL",
+                color = G.Cyan,
+                fontSize = 8.sp,
+                fontFamily = FontFamily.Monospace,
+                letterSpacing = 1.sp,
+                maxLines = 1,
+                softWrap = false
+            )
+        }
+    }
+}
+
+/**
+ * Classic AEUG emblem silhouette:
+ * blue Earth + yellow Moon + white colony ring + red ellipse on a dark disc.
+ */
+@Composable
+private fun AeugEmblem(size: Dp) {
+    val earthBlue = Color(0xFF1F6AD4)
+    val earthDeep = Color(0xFF0B3A7A)
+    val moonYellow = Color(0xFFE8C43A)
+    val moonShade = Color(0xFFC9A020)
+    val ringWhite = Color(0xFFF2F4F8)
+    val orbitRed = Color(0xFFD51E28)
+    val space = Color(0xFF060A14)
+
+    Canvas(modifier = Modifier.size(size)) {
+        val w = this.size.width
+        val h = this.size.height
+        val c = Offset(w * 0.5f, h * 0.5f)
+        val r = w * 0.48f
+
+        // Badge plate (space)
+        drawCircle(color = space, radius = r, center = c)
+        drawCircle(
+            color = ringWhite.copy(alpha = 0.55f),
+            radius = r,
+            center = c,
+            style = Stroke(width = 1.1.dp.toPx())
+        )
+
+        // White colony ring (tilted)
+        rotate(degrees = -28f, pivot = c) {
+            drawOval(
+                color = ringWhite,
+                topLeft = Offset(c.x - w * 0.42f, c.y - h * 0.22f),
+                size = Size(w * 0.84f, h * 0.44f),
+                style = Stroke(width = 3.2.dp.toPx())
+            )
+        }
+
+        // Red ellipse (crossing the white ring)
+        rotate(degrees = 38f, pivot = c) {
+            drawOval(
+                color = orbitRed,
+                topLeft = Offset(c.x - w * 0.38f, c.y - h * 0.16f),
+                size = Size(w * 0.76f, h * 0.32f),
+                style = Stroke(width = 2.6.dp.toPx())
+            )
+        }
+
+        // Earth (blue sphere) — slightly left of center
+        val earthC = Offset(w * 0.42f, h * 0.54f)
+        val earthR = w * 0.255f
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(earthBlue, earthDeep),
+                center = Offset(earthC.x - earthR * 0.25f, earthC.y - earthR * 0.3f),
+                radius = earthR * 1.35f
+            ),
+            radius = earthR,
+            center = earthC
+        )
+        // Soft highlight
+        drawCircle(
+            color = Color.White.copy(alpha = 0.18f),
+            radius = earthR * 0.35f,
+            center = Offset(earthC.x - earthR * 0.35f, earthC.y - earthR * 0.4f)
+        )
+        // Minimal land masses (green patches — readable at small size)
+        val land = Path().apply {
+            moveTo(earthC.x - earthR * 0.55f, earthC.y - earthR * 0.05f)
+            cubicTo(
+                earthC.x - earthR * 0.2f, earthC.y - earthR * 0.55f,
+                earthC.x + earthR * 0.25f, earthC.y - earthR * 0.4f,
+                earthC.x + earthR * 0.15f, earthC.y + earthR * 0.05f
+            )
+            cubicTo(
+                earthC.x - earthR * 0.05f, earthC.y + earthR * 0.45f,
+                earthC.x - earthR * 0.5f, earthC.y + earthR * 0.35f,
+                earthC.x - earthR * 0.55f, earthC.y - earthR * 0.05f
+            )
+            close()
+        }
+        drawPath(land, color = Color(0xFF3E9A5C).copy(alpha = 0.9f))
+        drawCircle(
+            color = ringWhite.copy(alpha = 0.25f),
+            radius = earthR,
+            center = earthC,
+            style = Stroke(width = 0.8.dp.toPx())
+        )
+
+        // Moon (yellow sphere) — upper right, classic AEUG placement
+        val moonC = Offset(w * 0.68f, h * 0.32f)
+        val moonR = w * 0.115f
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(moonYellow, moonShade),
+                center = Offset(moonC.x - moonR * 0.3f, moonC.y - moonR * 0.3f),
+                radius = moonR * 1.4f
+            ),
+            radius = moonR,
+            center = moonC
+        )
+        drawCircle(
+            color = Color.White.copy(alpha = 0.35f),
+            radius = moonR * 0.28f,
+            center = Offset(moonC.x - moonR * 0.35f, moonC.y - moonR * 0.35f)
+        )
     }
 }
 
