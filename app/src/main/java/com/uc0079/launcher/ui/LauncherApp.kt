@@ -57,10 +57,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
@@ -571,7 +569,7 @@ private fun HudHeader(
 
             Spacer(Modifier.height(6.dp))
 
-            // Main chronometer + AEUG / ZETA mark
+            // Main chronometer + AEUG emblem only
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     Modifier
@@ -597,8 +595,8 @@ private fun HudHeader(
                         letterSpacing = 2.sp
                     )
                 }
-                Spacer(Modifier.width(8.dp))
-                ZetaBrandMark()
+                Spacer(Modifier.width(10.dp))
+                AeugEmblem(size = 44.dp)
             }
 
             Spacer(Modifier.height(6.dp))
@@ -664,72 +662,9 @@ private fun HudHeader(
 }
 
 /**
- * AEUG unit mark + ZETA wordmark.
- * Emblem geometry follows the classic AEUG silhouette
- * (blue Earth, yellow Moon, white ring, red ellipse) — HUD tribute, not an official asset.
- */
-@Composable
-private fun ZetaBrandMark() {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.End
-    ) {
-        AeugEmblem(size = 52.dp)
-        Spacer(Modifier.width(8.dp))
-        Column(horizontalAlignment = Alignment.Start) {
-            Text(
-                text = "A.E.U.G.",
-                color = G.Yellow,
-                fontSize = 8.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Monospace,
-                letterSpacing = 2.sp
-            )
-            Text(
-                text = "ZETA",
-                color = G.White,
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Black,
-                fontFamily = FontFamily.Monospace,
-                letterSpacing = 3.sp,
-                maxLines = 1,
-                softWrap = false,
-                modifier = Modifier
-                    .graphicsLayer { rotationZ = -6f }
-                    .drawBehind {
-                        val y = size.height - 1.dp.toPx()
-                        drawLine(
-                            color = G.Cyan.copy(alpha = 0.85f),
-                            start = Offset(0f, y),
-                            end = Offset(size.width * 0.92f, y),
-                            strokeWidth = 2.dp.toPx(),
-                            cap = StrokeCap.Square
-                        )
-                        drawLine(
-                            color = G.Red,
-                            start = Offset(size.width * 0.92f, y),
-                            end = Offset(size.width, y),
-                            strokeWidth = 2.dp.toPx(),
-                            cap = StrokeCap.Square
-                        )
-                    }
-            )
-            Text(
-                text = "MSZ-006  ORBITAL",
-                color = G.Cyan,
-                fontSize = 8.sp,
-                fontFamily = FontFamily.Monospace,
-                letterSpacing = 1.sp,
-                maxLines = 1,
-                softWrap = false
-            )
-        }
-    }
-}
-
-/**
  * Classic AEUG emblem silhouette:
  * blue Earth + yellow Moon + white colony ring + red ellipse on a dark disc.
+ * HUD tribute — not an official asset.
  */
 @Composable
 private fun AeugEmblem(size: Dp) {
