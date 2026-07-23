@@ -455,6 +455,7 @@ private fun HomeScreen(
 private fun WidgetFrame(widgets: WidgetHostController, id: Int) {
     val minH = remember(id) { widgets.minHeightPx(id) }
     val heightDp = with(LocalDensity.current) { minH.toDp() }.coerceIn(72.dp, 340.dp)
+    val pinned = remember(id) { widgets.isPinnedWidget(id) }
 
     Box(
         Modifier
@@ -470,16 +471,18 @@ private fun WidgetFrame(widgets: WidgetHostController, id: Int) {
                 .fillMaxWidth()
                 .height(heightDp)
         )
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(2.dp)
-                .size(22.dp)
-                .background(G.PanelStrong)
-                .clickable { widgets.removeWidget(id) },
-            contentAlignment = Alignment.Center
-        ) {
-            Text("\u2715", color = G.Red, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        if (!pinned) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(2.dp)
+                    .size(22.dp)
+                    .background(G.PanelStrong)
+                    .clickable { widgets.removeWidget(id) },
+                contentAlignment = Alignment.Center
+            ) {
+                Text("\u2715", color = G.Red, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            }
         }
     }
 }

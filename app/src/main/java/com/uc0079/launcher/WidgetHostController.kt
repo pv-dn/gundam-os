@@ -98,6 +98,7 @@ class WidgetHostController(private val activity: ComponentActivity) {
     }
 
     fun removeWidget(id: Int) {
+        if (isPinnedWidget(id)) return
         widgetIds.remove(id)
         runCatching { host.deleteAppWidgetId(id) }
         saveIds()
@@ -110,6 +111,28 @@ class WidgetHostController(private val activity: ComponentActivity) {
 
     /** Minimum height reported by the widget, in px (already density-scaled by the framework). */
     fun minHeightPx(id: Int): Int = manager.getAppWidgetInfo(id)?.minHeight ?: 0
+
+    /** Google Search bar — kept on home; no remove affordance. */
+    fun isPinnedWidget(id: Int): Boolean {
+        val info = manager.getAppWidgetInfo(id) ?: return false
+        val pkg = info.provider?.packageName.orEmpty()
+        val cls = info.provider?.className.orEmpty()
+        if (pkg == GOOGLE_SEARCH_PKG) {
+            // Prefer search-bar providers; fall back to any widget from that package
+            // if class naming differs by OEM / Play version.
+            if (cls.contains("SearchWidget", ignoreCase = true) ||
+                cls.contains("SearchBar", ignoreCase = true) ||
+                cls.contains("GoogleSearch", ignoreCase = true)
+            ) {
+                return true
+            }
+            // Single-widget installs are almost always the search bar.
+            val fromPkg = manager.getInstalledProviders()
+                .count { it.provider?.packageName == GOOGLE_SEARCH_PKG }
+            if (fromPkg <= 2) return true
+        }
+        return false
+    }
 
     private fun loadIds(): List<Int> {
         val raw = prefs.getString(KEY, "").orEmpty()
@@ -126,5 +149,6 @@ class WidgetHostController(private val activity: ComponentActivity) {
         private const val KEY = "widgets"
         private const val HOST_ID = 0x47554E44 // "GUND"
         private const val INVALID = -1
+        private const val GOOGLE_SEARCH_PKG = "com.google.android.googlequicksearchbox"
     }
 }
