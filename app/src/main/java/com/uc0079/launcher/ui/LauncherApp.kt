@@ -133,6 +133,7 @@ fun LauncherApp(vm: LauncherViewModel, widgets: WidgetHostController) {
                 Screen.HOME -> HomeScreen(
                     vm = vm,
                     widgets = widgets,
+                    homePulse = homePulse,
                     onOpenAll = { screen = Screen.ALL },
                     onOpenFolder = { id ->
                         openFolderId = id
@@ -186,6 +187,7 @@ fun LauncherApp(vm: LauncherViewModel, widgets: WidgetHostController) {
 private fun HomeScreen(
     vm: LauncherViewModel,
     widgets: WidgetHostController,
+    homePulse: Int,
     onOpenAll: () -> Unit,
     onOpenFolder: (String) -> Unit,
     onOpenUpdate: () -> Unit,
@@ -200,6 +202,18 @@ private fun HomeScreen(
     var addWebOpen by remember { mutableStateOf(false) }
     val updateInfo = vm.updateInfo
     val appsByPkg = remember(vm.apps) { vm.apps.associateBy { it.packageName } }
+
+    // Home button while already on home → scroll favorites/widgets back to top.
+    LaunchedEffect(homePulse) {
+        if (homePulse > 0) {
+            helpOpen = false
+            addWebChooserOpen = false
+            addWebOpen = false
+            createFolderOpen = false
+            renameFolder = null
+            scroll.animateScrollTo(0)
+        }
+    }
 
     val pickBookmarkHtml = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()
