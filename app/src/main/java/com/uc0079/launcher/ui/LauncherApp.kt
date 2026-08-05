@@ -762,12 +762,12 @@ private fun EnergyMeter(percent: Int) {
             softWrap = false
         )
         Spacer(Modifier.width(4.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(1.5.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
             repeat(segments) { i ->
                 Box(
                     Modifier
-                        .width(6.dp)
-                        .height(10.dp)
+                        .width(10.dp)
+                        .height(12.dp)
                         .background(
                             if (i < filled) barColor else Color(0x33FFFFFF),
                             SkewTag
