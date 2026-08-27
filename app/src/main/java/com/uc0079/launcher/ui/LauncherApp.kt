@@ -2067,7 +2067,7 @@ private data class BatteryUiState(
 /**
  * Charging speed uses the same wattage formula as AOSP SettingsLib BatteryStatus:
  * (maxCurrent_uA / 1000) * (maxVoltage_uV / 1000), compared to ~2.5W / ~7.5W thresholds.
- * Some OEMs omit max current/voltage → falls back to "充電中".
+ * If the OEM omits max current, fall back to plug type (USB→低速, AC/無線→普通).
  */
 private fun batteryStateFrom(intent: Intent?): BatteryUiState {
     intent ?: return BatteryUiState()
@@ -2088,15 +2088,10 @@ private fun batteryStateFrom(intent: Intent?): BatteryUiState {
     )
 }
 
-/** Intent extras from ACTION_BATTERY_CHANGED (not always on public BatteryManager). */
-private const val EXTRA_MAX_CHARGING_CURRENT = "max_charging_current"
-private const val EXTRA_MAX_CHARGING_VOLTAGE = "max_charging_voltage"
-
 private fun chargeSpeedFrom(intent: Intent): ChargeSpeed {
-    val maxCurrentUa = intent.getIntExtra(EXTRA_MAX_CHARGING_CURRENT, -1)
-    var maxVoltageUv = intent.getIntExtra(EXTRA_MAX_CHARGING_VOLTAGE, -1)
+    val maxCurrentUa = intent.getIntExtra(BatteryManager.EXTRA_MAX_CHARGING_CURRENT, -1)
+    var maxVoltageUv = intent.getIntExtra(BatteryManager.EXTRA_MAX_CHARGING_VOLTAGE, -1)
     if (maxCurrentUa <= 0) {
-        // Fallback: USB often slow, AC more often normal/fast — still unknown wattage.
         return when (intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0)) {
             BatteryManager.BATTERY_PLUGGED_USB -> ChargeSpeed.SLOW
             BatteryManager.BATTERY_PLUGGED_AC -> ChargeSpeed.NORMAL
@@ -2105,7 +2100,6 @@ private fun chargeSpeedFrom(intent: Intent): ChargeSpeed {
         }
     }
     if (maxVoltageUv <= 0) maxVoltageUv = 5_000_000 // 5V default (AOSP)
-    // Same units as AOSP config_charging*Threshold (μW-scale product).
     val wattage = (maxCurrentUa / 1000) * (maxVoltageUv / 1000)
     return when {
         wattage < 2_500_000 -> ChargeSpeed.SLOW      // < ~2.5W
