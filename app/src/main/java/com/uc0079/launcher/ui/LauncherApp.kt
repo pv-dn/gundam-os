@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.BatteryManager
+import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -60,6 +61,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -75,6 +77,8 @@ import com.uc0079.launcher.LauncherViewModel
 import com.uc0079.launcher.UpdateChecker
 import com.uc0079.launcher.WidgetHostController
 import android.widget.Toast
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
@@ -757,10 +761,10 @@ private fun EnergyMeter(battery: BatteryUiState) {
     val chargeLabel = when {
         !battery.isCharging -> null
         battery.isFull -> "満充電"
-        battery.speed == ChargeSpeed.FAST -> "急速充電"
-        battery.speed == ChargeSpeed.SLOW -> "低速充電"
-        battery.speed == ChargeSpeed.NORMAL -> "普通充電"
-        else -> "充電中"
+        battery.speed == ChargeSpeed.FAST -> "急速"
+        battery.speed == ChargeSpeed.SLOW -> "低速"
+        battery.speed == ChargeSpeed.NORMAL -> "普通"
+        else -> "充電"
     }
     Column(horizontalAlignment = Alignment.End) {
         Row(
@@ -768,9 +772,10 @@ private fun EnergyMeter(battery: BatteryUiState) {
             modifier = Modifier.wrapContentWidth()
         ) {
             Text(
-                text = "ENRG",
-                color = G.Dim,
+                text = if (battery.isCharging) "CHRG" else "ENRG",
+                color = if (battery.isCharging) barColor else G.Dim,
                 fontSize = 9.sp,
+                fontWeight = if (battery.isCharging) FontWeight.Bold else FontWeight.Normal,
                 fontFamily = FontFamily.Monospace,
                 letterSpacing = 1.sp,
                 maxLines = 1,
@@ -792,30 +797,19 @@ private fun EnergyMeter(battery: BatteryUiState) {
             }
             Spacer(Modifier.width(4.dp))
             Text(
-                text = if (percent >= 0) "$pct%" else "--",
+                text = buildString {
+                    if (percent >= 0) append("$pct%") else append("--")
+                    if (chargeLabel != null) {
+                        append(' ')
+                        append(chargeLabel)
+                    }
+                },
                 color = barColor,
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Bold,
                 fontFamily = FontFamily.Monospace,
                 maxLines = 1,
                 softWrap = false
-            )
-        }
-        if (chargeLabel != null) {
-            Text(
-                text = chargeLabel,
-                color = when (battery.speed) {
-                    ChargeSpeed.FAST -> G.Yellow
-                    ChargeSpeed.SLOW -> G.Dim
-                    else -> G.Cyan
-                },
-                fontSize = 9.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Monospace,
-                letterSpacing = 1.sp,
-                maxLines = 1,
-                softWrap = false,
-                modifier = Modifier.padding(top = 2.dp)
             )
         }
     }
@@ -2040,19 +2034,64 @@ private fun rememberClock(): Pair<String, String> {
 @Composable
 private fun rememberBatteryState(): BatteryUiState {
     val context = LocalContext.current
-    var state by remember { mutableStateOf(BatteryUiState()) }
-    DisposableEffect(Unit) {
+    var state by remember { mutableStateOf(readBatteryState(context)) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    DisposableEffect(lifecycleOwner) {
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(c: Context?, i: Intent?) {
-                state = batteryStateFrom(i)
+                state = batteryStateFrom(i) ?: readBatteryState(context)
             }
         }
-        val filter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
-        val sticky = context.registerReceiver(receiver, filter)
-        state = batteryStateFrom(sticky)
-        onDispose { runCatching { context.unregisterReceiver(receiver) } }
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_BATTERY_CHANGED)
+            addAction(Intent.ACTION_POWER_CONNECTED)
+            addAction(Intent.ACTION_POWER_DISCONNECTED)
+        }
+        val sticky = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("UnspecifiedRegisterReceiverFlag")
+            context.registerReceiver(receiver, filter)
+        }
+        state = batteryStateFrom(sticky) ?: readBatteryState(context)
+
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                state = readBatteryState(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+
+        onDispose {
+            runCatching { context.unregisterReceiver(receiver) }
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
     }
     return state
+}
+
+/** Sticky intent + BatteryManager — works even if dynamic receiver misses an event. */
+private fun readBatteryState(context: Context): BatteryUiState {
+    val sticky = context.registerReceiver(
+        null,
+        IntentFilter(Intent.ACTION_BATTERY_CHANGED)
+    )
+    batteryStateFrom(sticky)?.let { return it }
+    val bm = context.getSystemService(Context.BATTERY_SERVICE) as BatteryManager
+    val status = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_STATUS)
+    val capacity = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+    val percent = capacity.coerceIn(0, 100)
+    val charging = bm.isCharging ||
+        status == BatteryManager.BATTERY_STATUS_CHARGING ||
+        status == BatteryManager.BATTERY_STATUS_FULL
+    val full = status == BatteryManager.BATTERY_STATUS_FULL || percent >= 100
+    return BatteryUiState(
+        percent = if (capacity >= 0) percent else -1,
+        isCharging = charging,
+        isFull = full && charging,
+        speed = if (charging && !full) chargeSpeedFrom(sticky) else ChargeSpeed.UNKNOWN,
+    )
 }
 
 private enum class ChargeSpeed { UNKNOWN, SLOW, NORMAL, FAST }
@@ -2069,8 +2108,8 @@ private data class BatteryUiState(
  * (maxCurrent_uA / 1000) * (maxVoltage_uV / 1000), compared to ~2.5W / ~7.5W thresholds.
  * If the OEM omits max current, fall back to plug type (USB→低速, AC/無線→普通).
  */
-private fun batteryStateFrom(intent: Intent?): BatteryUiState {
-    intent ?: return BatteryUiState()
+private fun batteryStateFrom(intent: Intent?): BatteryUiState? {
+    intent ?: return null
     val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
     val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
     val percent = if (level >= 0 && scale > 0) level * 100 / scale else -1
@@ -2092,10 +2131,10 @@ private fun batteryStateFrom(intent: Intent?): BatteryUiState {
 private const val EXTRA_MAX_CHARGING_CURRENT = "max_charging_current"
 private const val EXTRA_MAX_CHARGING_VOLTAGE = "max_charging_voltage"
 
-private fun chargeSpeedFrom(intent: Intent): ChargeSpeed {
-    // String keys — EXTRA_MAX_CHARGING_* are not always in the public stub used by CI.
-    val maxCurrentUa = intent.getIntExtra("max_charging_current", -1)
-    var maxVoltageUv = intent.getIntExtra("max_charging_voltage", -1)
+private fun chargeSpeedFrom(intent: Intent?): ChargeSpeed {
+    if (intent == null) return ChargeSpeed.UNKNOWN
+    val maxCurrentUa = intent.getIntExtra(EXTRA_MAX_CHARGING_CURRENT, -1)
+    var maxVoltageUv = intent.getIntExtra(EXTRA_MAX_CHARGING_VOLTAGE, -1)
     if (maxCurrentUa <= 0) {
         return when (intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0)) {
             BatteryManager.BATTERY_PLUGGED_USB -> ChargeSpeed.SLOW
