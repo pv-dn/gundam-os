@@ -761,10 +761,15 @@ private fun EnergyMeter(battery: BatteryUiState) {
     val chargeLabel = when {
         !battery.isCharging -> null
         battery.isFull -> "満充電"
-        battery.speed == ChargeSpeed.FAST -> "急速"
-        battery.speed == ChargeSpeed.SLOW -> "低速"
-        battery.speed == ChargeSpeed.NORMAL -> "普通"
-        else -> "充電"
+        battery.speed == ChargeSpeed.FAST -> "急速充電"
+        battery.speed == ChargeSpeed.SLOW -> "低速充電"
+        battery.speed == ChargeSpeed.NORMAL -> "普通充電"
+        else -> "充電中"
+    }
+    val chargeColor = when (battery.speed) {
+        ChargeSpeed.FAST -> G.Yellow
+        ChargeSpeed.SLOW -> G.Dim
+        else -> G.Cyan
     }
     Column(horizontalAlignment = Alignment.End) {
         Row(
@@ -797,19 +802,26 @@ private fun EnergyMeter(battery: BatteryUiState) {
             }
             Spacer(Modifier.width(4.dp))
             Text(
-                text = buildString {
-                    if (percent >= 0) append("$pct%") else append("--")
-                    if (chargeLabel != null) {
-                        append(' ')
-                        append(chargeLabel)
-                    }
-                },
+                text = if (percent >= 0) "$pct%" else "--",
                 color = barColor,
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Bold,
                 fontFamily = FontFamily.Monospace,
                 maxLines = 1,
                 softWrap = false
+            )
+        }
+        if (chargeLabel != null) {
+            Text(
+                text = chargeLabel,
+                color = chargeColor,
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace,
+                letterSpacing = 1.sp,
+                maxLines = 1,
+                softWrap = false,
+                modifier = Modifier.padding(top = 3.dp)
             )
         }
     }
