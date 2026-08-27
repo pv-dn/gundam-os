@@ -90,7 +90,7 @@ fun LauncherApp(vm: LauncherViewModel, widgets: WidgetHostController) {
         var openFolderId by remember { mutableStateOf<String?>(null) }
         val context = LocalContext.current
 
-        // System Home button ↁEback to home screen (from ALL / FOLDER).
+        // System Home button → back to home screen (from ALL / FOLDER).
         val homePulse = vm.homePulse
         LaunchedEffect(homePulse) {
             if (homePulse > 0) {
@@ -203,7 +203,7 @@ private fun HomeScreen(
     val updateInfo = vm.updateInfo
     val appsByPkg = remember(vm.apps) { vm.apps.associateBy { it.packageName } }
 
-    // Home button while already on home ↁEscroll favorites/widgets back to top.
+    // Home button while already on home → scroll favorites/widgets back to top.
     LaunchedEffect(homePulse) {
         if (homePulse > 0) {
             helpOpen = false
@@ -248,13 +248,13 @@ private fun HomeScreen(
         ) {
             Spacer(Modifier.height(12.dp))
             SectionLabel(
-                text = "WIDGETS / ウィジェチE��",
+                text = "WIDGETS / ウィジェット",
                 onAdd = { widgets.pickWidget() }
             )
             Spacer(Modifier.height(8.dp))
             if (widgets.widgetIds.isEmpty()) {
                 Text(
-                    text = "なぁE E右の �E�Eで追加",
+                    text = "なし — 右の ＋ で追加",
                     color = G.Dim,
                     fontSize = 12.sp,
                     fontFamily = FontFamily.Monospace,
@@ -268,13 +268,13 @@ private fun HomeScreen(
 
             Spacer(Modifier.height(22.dp))
             SectionLabel(
-                text = "FAVORITE UNITS / お気に入めE,
+                text = "FAVORITE UNITS / お気に入り",
                 onAdd = { addWebChooserOpen = true }
             )
             Spacer(Modifier.height(6.dp))
             if (favorites.isEmpty()) {
                 Text(
-                    text = "登録なぁE E右の �E�Eで URL / HTML 取り込み、\nまた�E [ALL UNITS] の ⋮ からアプリを追加",
+                    text = "登録なし — 右の ＋ で URL / HTML 取り込み、\nまたは [ALL UNITS] の ⋮ からアプリを追加",
                     color = G.Dim,
                     fontSize = 13.sp,
                     fontFamily = FontFamily.Monospace,
@@ -339,7 +339,7 @@ private fun HomeScreen(
             Spacer(Modifier.height(6.dp))
             if (folders.isEmpty()) {
                 Text(
-                    text = "なぁE E右の �E�Eで作�E",
+                    text = "なし — 右の ＋ で作成",
                     color = G.Dim,
                     fontSize = 12.sp,
                     fontFamily = FontFamily.Monospace,
@@ -404,7 +404,7 @@ private fun HomeScreen(
             },
             text = {
                 Text(
-                    "ブックマ�Eク HTML を読み込んでぁE��ぁE,
+                    "ブックマーク HTML を読み込んでいます",
                     color = G.Dim,
                     fontSize = 14.sp,
                     fontFamily = FontFamily.Monospace
@@ -553,7 +553,7 @@ private fun HudHeader(
             .padding(horizontal = 12.dp, vertical = 8.dp)
     ) {
         Column(Modifier.fillMaxWidth()) {
-            // Top rail  Ecallsign + energy
+            // Top rail — callsign + energy
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
@@ -615,7 +615,7 @@ private fun HudHeader(
 
             Spacer(Modifier.height(6.dp))
 
-            // Bottom data strip + MENU (same row ↁEno extra header height)
+            // Bottom data strip + MENU (same row → no extra header height)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
@@ -693,7 +693,7 @@ private fun AeugEmblem(size: Dp) {
         val h = this.size.height
         val c = Offset(w * 0.5f, h * 0.5f)
 
-        // White colony ring  Eperfect circle, thick stroke
+        // White colony ring — perfect circle, thick stroke
         val ringOuter = w * 0.42f
         val ringStroke = w * 0.105f
         drawCircle(
@@ -722,11 +722,11 @@ private fun AeugEmblem(size: Dp) {
         }
         drawPath(redPath, color = orbitRed)
 
-        // Earth  Esolid blue, centered on the cross
+        // Earth — solid blue, centered on the cross
         val earthR = w * 0.195f
         drawCircle(color = earthBlue, radius = earthR, center = c)
 
-        // Moon  Elower-right, sits on the inner edge of the white ring
+        // Moon — lower-right, sits on the inner edge of the white ring
         val moonR = w * 0.095f
         val moonC = Offset(
             c.x + earthR * 0.72f,
@@ -756,11 +756,11 @@ private fun EnergyMeter(battery: BatteryUiState) {
     }
     val chargeLabel = when {
         !battery.isCharging -> null
-        battery.isFull -> "満允E��"
-        battery.speed == ChargeSpeed.FAST -> "急速�E電"
-        battery.speed == ChargeSpeed.SLOW -> "低速�E電"
-        battery.speed == ChargeSpeed.NORMAL -> "普通�E電"
-        else -> "允E��中"
+        battery.isFull -> "満充電"
+        battery.speed == ChargeSpeed.FAST -> "急速充電"
+        battery.speed == ChargeSpeed.SLOW -> "低速充電"
+        battery.speed == ChargeSpeed.NORMAL -> "普通充電"
+        else -> "充電中"
     }
     Column(horizontalAlignment = Alignment.End) {
         Row(
@@ -856,7 +856,7 @@ private data class ListRow(
 )
 
 /** Header marker for the favorites block pinned above A–Z. */
-private const val FAV_HEADER = '\u2605' // ☁E
+private const val FAV_HEADER = '\u2605' // ★
 /** Header marker for folders block. */
 private const val FOLDER_HEADER = '\u25A3' // ▣
 
@@ -1325,7 +1325,7 @@ private fun AddWebChooserDialog(
         text = {
             Column {
                 Text(
-                    text = "\u270E  URL を�E劁E,
+                    text = "\u270E  URL を入力",
                     color = G.White,
                     fontSize = 16.sp,
                     fontFamily = FontFamily.Monospace,
@@ -1345,7 +1345,7 @@ private fun AddWebChooserDialog(
                         .padding(vertical = 12.dp)
                 )
                 Text(
-                    text = "Chrome 等で書き�Eしたブックマ�Eク HTML を選びまぁE,
+                    text = "Chrome 等で書き出したブックマーク HTML を選びます",
                     color = G.Dim,
                     fontSize = 12.sp,
                     fontFamily = FontFamily.Monospace,
@@ -1385,7 +1385,7 @@ private fun AddWebFavoriteDialog(
         text = {
             Column {
                 Text(
-                    "タイトル�E�任意！E,
+                    "タイトル（任意）",
                     color = G.Dim,
                     fontSize = 12.sp,
                     fontFamily = FontFamily.Monospace,
@@ -1446,11 +1446,11 @@ private fun AddWebFavoriteDialog(
         confirmButton = {
             TextButton(onClick = {
                 if (LauncherViewModel.normalizeUrl(url) == null) {
-                    error = "有効な URL を�E力してください"
+                    error = "有効な URL を入力してください"
                     return@TextButton
                 }
                 if (!onConfirm(title, url)) {
-                    error = "すでに登録済みでぁE
+                    error = "すでに登録済みです"
                 }
             }) {
                 Text("追加", color = G.Cyan, fontFamily = FontFamily.Monospace)
@@ -1575,7 +1575,7 @@ private fun AppRow(
     }
     if (createNameOpen) {
         FolderNameDialog(
-            title = "新しいフォルダにしまぁE,
+            title = "新しいフォルダにしまう",
             initial = "フォルダ",
             onDismiss = { createNameOpen = false },
             onConfirm = { name ->
@@ -1760,7 +1760,7 @@ private fun FolderScreen(
 
         if (apps.isEmpty()) {
             Text(
-                text = "空でぁE E全アプリで ⋮ を押し、\n「フォルダにしまぁE��で入れてください、E,
+                text = "空です — 全アプリで ⋮ を押し、\n「フォルダにしまう」で入れてください。",
                 color = G.Dim,
                 fontSize = 13.sp,
                 fontFamily = FontFamily.Monospace,
@@ -1872,7 +1872,7 @@ private fun RenameAppDialog(
         text = {
             Column {
                 Text(
-                    "允E�E名前: $originalName",
+                    "元の名前: $originalName",
                     color = G.Dim,
                     fontSize = 12.sp,
                     fontFamily = FontFamily.Monospace,
@@ -1896,7 +1896,7 @@ private fun RenameAppDialog(
                 if (onReset != null && currentName != originalName) {
                     Spacer(Modifier.height(10.dp))
                     Text(
-                        text = "允E�E名前に戻ぁE,
+                        text = "元の名前に戻す",
                         color = G.Cyan,
                         fontSize = 14.sp,
                         fontFamily = FontFamily.Monospace,
@@ -1933,7 +1933,7 @@ private fun FolderPickDialog(
         containerColor = G.Dialog,
         title = {
             Text(
-                "フォルダにしまぁE,
+                "フォルダにしまう",
                 color = G.White,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold
@@ -1942,7 +1942,7 @@ private fun FolderPickDialog(
         text = {
             Column {
                 Text(
-                    "選んだアプリは A〜Z 一覧から隠れます、E,
+                    "選んだアプリは A〜Z 一覧から隠れます。",
                     color = G.Dim,
                     fontSize = 12.sp,
                     fontFamily = FontFamily.Monospace
@@ -2067,7 +2067,7 @@ private data class BatteryUiState(
 /**
  * Charging speed uses the same wattage formula as AOSP SettingsLib BatteryStatus:
  * (maxCurrent_uA / 1000) * (maxVoltage_uV / 1000), compared to ~2.5W / ~7.5W thresholds.
- * Some OEMs omit max current/voltage ↁEfalls back to "允E��中".
+ * Some OEMs omit max current/voltage → falls back to "充電中".
  */
 private fun batteryStateFrom(intent: Intent?): BatteryUiState {
     intent ?: return BatteryUiState()
@@ -2088,15 +2088,15 @@ private fun batteryStateFrom(intent: Intent?): BatteryUiState {
     )
 }
 
-
 /** Intent extras from ACTION_BATTERY_CHANGED (not always on public BatteryManager). */
 private const val EXTRA_MAX_CHARGING_CURRENT = "max_charging_current"
 private const val EXTRA_MAX_CHARGING_VOLTAGE = "max_charging_voltage"
+
 private fun chargeSpeedFrom(intent: Intent): ChargeSpeed {
     val maxCurrentUa = intent.getIntExtra(EXTRA_MAX_CHARGING_CURRENT, -1)
     var maxVoltageUv = intent.getIntExtra(EXTRA_MAX_CHARGING_VOLTAGE, -1)
     if (maxCurrentUa <= 0) {
-        // Fallback: USB often slow, AC more often normal/fast  Estill unknown wattage.
+        // Fallback: USB often slow, AC more often normal/fast — still unknown wattage.
         return when (intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0)) {
             BatteryManager.BATTERY_PLUGGED_USB -> ChargeSpeed.SLOW
             BatteryManager.BATTERY_PLUGGED_AC -> ChargeSpeed.NORMAL
