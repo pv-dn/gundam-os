@@ -534,7 +534,7 @@ private fun HudHeader(
     onOpenMenu: () -> Unit,
 ) {
     val (time, date) = rememberClock()
-    val battery = rememberBatteryPercent()
+    val battery = rememberBatteryState()
 
     Box(
         Modifier
@@ -578,7 +578,7 @@ private fun HudHeader(
                     softWrap = false
                 )
                 Spacer(Modifier.weight(1f))
-                EnergyMeter(percent = battery)
+                EnergyMeter(battery = battery)
             }
 
             Spacer(Modifier.height(6.dp))
@@ -736,55 +736,88 @@ private fun AeugEmblem(size: Dp) {
     }
 }
 
-/** Segmented reactor / energy gauge for battery %. */
+/** Segmented reactor / energy gauge for battery % + charging status. */
 @Composable
-private fun EnergyMeter(percent: Int) {
+private fun EnergyMeter(battery: BatteryUiState) {
+    val percent = battery.percent
     val pct = percent.coerceIn(0, 100)
     val segments = 10
     val filled = if (percent < 0) 0 else ((pct / 100f) * segments).toInt().coerceIn(0, segments)
     val barColor = when {
         percent < 0 -> G.Dim
+        battery.isCharging -> when (battery.speed) {
+            ChargeSpeed.FAST -> G.Yellow
+            ChargeSpeed.SLOW -> G.Cyan
+            ChargeSpeed.NORMAL, ChargeSpeed.UNKNOWN -> G.Cyan
+        }
         pct <= 15 -> G.Red
         pct <= 35 -> G.Yellow
         else -> G.Cyan
     }
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.wrapContentWidth()
-    ) {
-        Text(
-            text = "ENRG",
-            color = G.Dim,
-            fontSize = 9.sp,
-            fontFamily = FontFamily.Monospace,
-            letterSpacing = 1.sp,
-            maxLines = 1,
-            softWrap = false
-        )
-        Spacer(Modifier.width(4.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-            repeat(segments) { i ->
-                Box(
-                    Modifier
-                        .width(10.dp)
-                        .height(12.dp)
-                        .background(
-                            if (i < filled) barColor else Color(0x33FFFFFF),
-                            SkewTag
-                        )
-                )
+    val chargeLabel = when {
+        !battery.isCharging -> null
+        battery.isFull -> "満充電"
+        battery.speed == ChargeSpeed.FAST -> "急速充電"
+        battery.speed == ChargeSpeed.SLOW -> "低速充電"
+        battery.speed == ChargeSpeed.NORMAL -> "普通充電"
+        else -> "充電中"
+    }
+    Column(horizontalAlignment = Alignment.End) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.wrapContentWidth()
+        ) {
+            Text(
+                text = "ENRG",
+                color = G.Dim,
+                fontSize = 9.sp,
+                fontFamily = FontFamily.Monospace,
+                letterSpacing = 1.sp,
+                maxLines = 1,
+                softWrap = false
+            )
+            Spacer(Modifier.width(4.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                repeat(segments) { i ->
+                    Box(
+                        Modifier
+                            .width(10.dp)
+                            .height(12.dp)
+                            .background(
+                                if (i < filled) barColor else Color(0x33FFFFFF),
+                                SkewTag
+                            )
+                    )
+                }
             }
+            Spacer(Modifier.width(4.dp))
+            Text(
+                text = if (percent >= 0) "$pct%" else "--",
+                color = barColor,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace,
+                maxLines = 1,
+                softWrap = false
+            )
         }
-        Spacer(Modifier.width(4.dp))
-        Text(
-            text = if (percent >= 0) "$pct%" else "--",
-            color = barColor,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-            fontFamily = FontFamily.Monospace,
-            maxLines = 1,
-            softWrap = false
-        )
+        if (chargeLabel != null) {
+            Text(
+                text = chargeLabel,
+                color = when (battery.speed) {
+                    ChargeSpeed.FAST -> G.Yellow
+                    ChargeSpeed.SLOW -> G.Dim
+                    else -> G.Cyan
+                },
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace,
+                letterSpacing = 1.sp,
+                maxLines = 1,
+                softWrap = false,
+                modifier = Modifier.padding(top = 2.dp)
+            )
+        }
     }
 }
 
@@ -2005,26 +2038,74 @@ private fun rememberClock(): Pair<String, String> {
 }
 
 @Composable
-private fun rememberBatteryPercent(): Int {
+private fun rememberBatteryState(): BatteryUiState {
     val context = LocalContext.current
-    var pct by remember { mutableStateOf(-1) }
+    var state by remember { mutableStateOf(BatteryUiState()) }
     DisposableEffect(Unit) {
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(c: Context?, i: Intent?) {
-                pct = percentFrom(i)
+                state = batteryStateFrom(i)
             }
         }
         val filter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
         val sticky = context.registerReceiver(receiver, filter)
-        percentFrom(sticky).let { if (it >= 0) pct = it }
+        state = batteryStateFrom(sticky)
         onDispose { runCatching { context.unregisterReceiver(receiver) } }
     }
-    return pct
+    return state
 }
 
-private fun percentFrom(intent: Intent?): Int {
-    intent ?: return -1
+private enum class ChargeSpeed { UNKNOWN, SLOW, NORMAL, FAST }
+
+private data class BatteryUiState(
+    val percent: Int = -1,
+    val isCharging: Boolean = false,
+    val isFull: Boolean = false,
+    val speed: ChargeSpeed = ChargeSpeed.UNKNOWN,
+)
+
+/**
+ * Charging speed uses the same wattage formula as AOSP SettingsLib BatteryStatus:
+ * (maxCurrent_uA / 1000) * (maxVoltage_uV / 1000), compared to ~2.5W / ~7.5W thresholds.
+ * Some OEMs omit max current/voltage → falls back to "充電中".
+ */
+private fun batteryStateFrom(intent: Intent?): BatteryUiState {
+    intent ?: return BatteryUiState()
     val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
     val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
-    return if (level >= 0 && scale > 0) level * 100 / scale else -1
+    val percent = if (level >= 0 && scale > 0) level * 100 / scale else -1
+    val status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, BatteryManager.BATTERY_STATUS_UNKNOWN)
+    val plugged = intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0)
+    val isPlugged = plugged != 0
+    val isFull = status == BatteryManager.BATTERY_STATUS_FULL || percent >= 100
+    val isCharging = isPlugged
+    val speed = if (isCharging && !isFull) chargeSpeedFrom(intent) else ChargeSpeed.UNKNOWN
+    return BatteryUiState(
+        percent = percent,
+        isCharging = isCharging,
+        isFull = isFull && isPlugged,
+        speed = if (isFull) ChargeSpeed.UNKNOWN else speed,
+    )
+}
+
+private fun chargeSpeedFrom(intent: Intent): ChargeSpeed {
+    val maxCurrentUa = intent.getIntExtra(BatteryManager.EXTRA_MAX_CHARGING_CURRENT, -1)
+    var maxVoltageUv = intent.getIntExtra(BatteryManager.EXTRA_MAX_CHARGING_VOLTAGE, -1)
+    if (maxCurrentUa <= 0) {
+        // Fallback: USB often slow, AC more often normal/fast — still unknown wattage.
+        return when (intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0)) {
+            BatteryManager.BATTERY_PLUGGED_USB -> ChargeSpeed.SLOW
+            BatteryManager.BATTERY_PLUGGED_AC -> ChargeSpeed.NORMAL
+            BatteryManager.BATTERY_PLUGGED_WIRELESS -> ChargeSpeed.NORMAL
+            else -> ChargeSpeed.UNKNOWN
+        }
+    }
+    if (maxVoltageUv <= 0) maxVoltageUv = 5_000_000 // 5V default (AOSP)
+    // Same units as AOSP config_charging*Threshold (μW-scale product).
+    val wattage = (maxCurrentUa / 1000) * (maxVoltageUv / 1000)
+    return when {
+        wattage < 2_500_000 -> ChargeSpeed.SLOW      // < ~2.5W
+        wattage > 7_500_000 -> ChargeSpeed.FAST      // > ~7.5W
+        else -> ChargeSpeed.NORMAL
+    }
 }
