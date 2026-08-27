@@ -2088,9 +2088,14 @@ private fun batteryStateFrom(intent: Intent?): BatteryUiState {
     )
 }
 
+/** Intent extras from ACTION_BATTERY_CHANGED (not always on public BatteryManager). */
+private const val EXTRA_MAX_CHARGING_CURRENT = "max_charging_current"
+private const val EXTRA_MAX_CHARGING_VOLTAGE = "max_charging_voltage"
+
 private fun chargeSpeedFrom(intent: Intent): ChargeSpeed {
-    val maxCurrentUa = intent.getIntExtra(BatteryManager.EXTRA_MAX_CHARGING_CURRENT, -1)
-    var maxVoltageUv = intent.getIntExtra(BatteryManager.EXTRA_MAX_CHARGING_VOLTAGE, -1)
+    // String keys — EXTRA_MAX_CHARGING_* are not always in the public stub used by CI.
+    val maxCurrentUa = intent.getIntExtra("max_charging_current", -1)
+    var maxVoltageUv = intent.getIntExtra("max_charging_voltage", -1)
     if (maxCurrentUa <= 0) {
         return when (intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0)) {
             BatteryManager.BATTERY_PLUGGED_USB -> ChargeSpeed.SLOW
