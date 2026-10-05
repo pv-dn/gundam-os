@@ -33,7 +33,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
@@ -51,6 +53,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -60,7 +63,6 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -1088,7 +1090,9 @@ private fun AllAppsScreen(
                             letterIndexState.value[c]?.let { idx ->
                                 scrollJob?.cancel()
                                 scrollJob = scope.launch {
-                                    listState.scrollToItem(idx)
+                                    // Unmeasured rows above the target make scrollToItem overshoot
+                                    // (letter section ends up above the viewport). Snap + correct.
+                                    listState.snapSectionToTop(idx)
                                 }
                             }
                         }
@@ -1184,6 +1188,49 @@ private fun SearchBar(
     }
 }
 
+/**
+ * Scroll [index] to the top of the viewport. LazyColumn often overshoots when
+ * rows above the target were never measured — correct after a layout frame.
+ */
+private suspend fun LazyListState.snapSectionToTop(index: Int) {
+    if (index < 0) return
+    suspend fun pin() {
+        scrollToItem(index, scrollOffset = 0)
+        withFrameNanos { }
+        val visible = layoutInfo.visibleItemsInfo
+        val target = visible.firstOrNull { it.index == index }
+        when {
+            // Target scrolled past the top → jump back
+            firstVisibleItemIndex > index -> scrollToItem(index, scrollOffset = 0)
+            // Target not yet at top of viewport
+            target != null && target.offset != 0 -> {
+                scrollBy(target.offset.toFloat())
+            }
+            // Still above target (rare undershoot)
+            firstVisibleItemIndex < index && target == null -> {
+                scrollToItem(index, scrollOffset = 0)
+            }
+            // Pinned but with leftover scroll offset on first item
+            firstVisibleItemIndex == index && firstVisibleItemScrollOffset != 0 -> {
+                scrollBy(firstVisibleItemScrollOffset.toFloat())
+            }
+        }
+        withFrameNanos { }
+        // Second pass — overshoot is common on long lists (favorites + many apps).
+        if (firstVisibleItemIndex != index || firstVisibleItemScrollOffset != 0) {
+            scrollToItem(index, scrollOffset = 0)
+            withFrameNanos { }
+            val t2 = layoutInfo.visibleItemsInfo.firstOrNull { it.index == index }
+            if (t2 != null && t2.offset != 0) {
+                scrollBy(t2.offset.toFloat())
+            } else if (firstVisibleItemIndex > index) {
+                scrollToItem(index, scrollOffset = 0)
+            }
+        }
+    }
+    pin()
+}
+
 @Composable
 private fun AlphabetScroller(
     letters: List<Char>,
@@ -1191,10 +1238,9 @@ private fun AlphabetScroller(
     onActiveChange: (Char?) -> Unit,
     onLetter: (Char) -> Unit
 ) {
-    var heightPx by remember { mutableStateOf(1) }
-    // pointerInput only restarts when [letters]/[heightPx] change. Favorites /
-    // folders growing shifts LazyColumn indices without changing the letter set,
-    // so callbacks must be read through rememberUpdatedState (not captured stale).
+    // pointerInput only restarts when letter *count* changes. Favorites / folders
+    // growing shifts LazyColumn indices without changing the letter set, so
+    // callbacks must be read through rememberUpdatedState (not captured stale).
     val lettersLatest = rememberUpdatedState(letters)
     val onLetterLatest = rememberUpdatedState(onLetter)
     val onActiveChangeLatest = rememberUpdatedState(onActiveChange)
@@ -1204,13 +1250,14 @@ private fun AlphabetScroller(
             .width(30.dp)
             .padding(start = 4.dp)
             .background(G.Panel)
-            .onSizeChanged { heightPx = if (it.height > 0) it.height else 1 }
-            .pointerInput(letters.size, heightPx) {
+            .pointerInput(letters.size) {
                 awaitEachGesture {
                     fun pick(y: Float) {
                         val current = lettersLatest.value
                         if (current.isEmpty()) return
-                        val idx = ((y / heightPx) * current.size)
+                        // Equal slots matching weight(1f) children below.
+                        val h = size.height.coerceAtLeast(1)
+                        val idx = ((y / h) * current.size)
                             .toInt()
                             .coerceIn(0, current.size - 1)
                         val c = current[idx]
@@ -1231,21 +1278,29 @@ private fun AlphabetScroller(
                 }
             },
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.SpaceEvenly
     ) {
+        // Equal-height slots so finger Y lines up with the glyph (SpaceEvenly +
+        // bold size changes used to shift hit targets vs scroll targets).
         letters.forEach { c ->
             val on = c == activeLetter
             val special = c == FAV_HEADER || c == FOLDER_HEADER
-            Text(
-                text = c.toString(),
-                color = when {
-                    on || c == FAV_HEADER -> G.Yellow
-                    else -> G.Cyan
-                },
-                fontSize = if (on) 12.sp else 10.sp,
-                fontWeight = if (on || special) FontWeight.Bold else FontWeight.Normal,
-                fontFamily = FontFamily.Monospace
-            )
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = c.toString(),
+                    color = when {
+                        on || c == FAV_HEADER -> G.Yellow
+                        else -> G.Cyan
+                    },
+                    fontSize = if (on) 11.sp else 10.sp,
+                    fontWeight = if (on || special) FontWeight.Bold else FontWeight.Normal,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
         }
     }
 }
