@@ -34,6 +34,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
@@ -48,6 +49,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -79,6 +81,7 @@ import com.uc0079.launcher.WidgetHostController
 import android.widget.Toast
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
@@ -937,11 +940,16 @@ private fun AllAppsScreen(
         }
     }
 
+    // LazyColumn item index for each section header (★ / ▣ / A–Z / #).
+    // Must stay in sync with [rows]; scroller reads this via rememberUpdatedState
+    // so fav/folder growth cannot leave a stale closure behind.
     val letterIndex = remember(rows) {
         val map = LinkedHashMap<Char, Int>()
         rows.forEachIndexed { i, r -> if (r.header != null) map[r.header] = i }
         map
     }
+    val letterIndexState = rememberUpdatedState(letterIndex)
+    var scrollJob by remember { mutableStateOf<Job?>(null) }
 
     Column(
         Modifier
@@ -963,7 +971,21 @@ private fun AllAppsScreen(
                     state = listState,
                     modifier = Modifier.weight(1f)
                 ) {
-                    items(rows.size) { i ->
+                    items(
+                        count = rows.size,
+                        key = { i ->
+                            val row = rows[i]
+                            when {
+                                row.header != null -> "h:${row.header}"
+                                row.folder != null -> "f:${row.folder.id}"
+                                row.web != null -> "w:${row.web.id}"
+                                row.app != null && row.favIndex >= 0 ->
+                                    "fav:${row.app.packageName}:${row.favIndex}"
+                                row.app != null -> "app:${row.app.packageName}"
+                                else -> "row:$i"
+                            }
+                        }
+                    ) { i ->
                         val row = rows[i]
                         when {
                             row.header != null -> {
@@ -1063,8 +1085,11 @@ private fun AllAppsScreen(
                         activeLetter = activeLetter,
                         onActiveChange = { activeLetter = it },
                         onLetter = { c ->
-                            letterIndex[c]?.let { idx ->
-                                scope.launch { listState.scrollToItem(idx) }
+                            letterIndexState.value[c]?.let { idx ->
+                                scrollJob?.cancel()
+                                scrollJob = scope.launch {
+                                    listState.scrollToItem(idx)
+                                }
                             }
                         }
                     )
@@ -1167,6 +1192,12 @@ private fun AlphabetScroller(
     onLetter: (Char) -> Unit
 ) {
     var heightPx by remember { mutableStateOf(1) }
+    // pointerInput only restarts when [letters]/[heightPx] change. Favorites /
+    // folders growing shifts LazyColumn indices without changing the letter set,
+    // so callbacks must be read through rememberUpdatedState (not captured stale).
+    val lettersLatest = rememberUpdatedState(letters)
+    val onLetterLatest = rememberUpdatedState(onLetter)
+    val onActiveChangeLatest = rememberUpdatedState(onActiveChange)
     Column(
         modifier = Modifier
             .fillMaxHeight()
@@ -1174,16 +1205,17 @@ private fun AlphabetScroller(
             .padding(start = 4.dp)
             .background(G.Panel)
             .onSizeChanged { heightPx = if (it.height > 0) it.height else 1 }
-            .pointerInput(letters, heightPx) {
+            .pointerInput(letters.size, heightPx) {
                 awaitEachGesture {
                     fun pick(y: Float) {
-                        if (letters.isEmpty()) return
-                        val idx = ((y / heightPx) * letters.size)
+                        val current = lettersLatest.value
+                        if (current.isEmpty()) return
+                        val idx = ((y / heightPx) * current.size)
                             .toInt()
-                            .coerceIn(0, letters.size - 1)
-                        val c = letters[idx]
-                        onActiveChange(c)
-                        onLetter(c)
+                            .coerceIn(0, current.size - 1)
+                        val c = current[idx]
+                        onActiveChangeLatest.value(c)
+                        onLetterLatest.value(c)
                     }
                     val down = awaitFirstDown(requireUnconsumed = false)
                     pick(down.position.y)
@@ -1195,7 +1227,7 @@ private fun AlphabetScroller(
                         pick(change.position.y)
                         change.consume()
                     }
-                    onActiveChange(null)
+                    onActiveChangeLatest.value(null)
                 }
             },
         horizontalAlignment = Alignment.CenterHorizontally,
