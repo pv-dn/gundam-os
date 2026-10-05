@@ -1,5 +1,6 @@
 package com.uc0079.launcher.ui
 
+import android.Manifest
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -9,7 +10,6 @@ import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -59,7 +59,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
@@ -79,12 +78,14 @@ import com.uc0079.launcher.FavoriteEntry
 import com.uc0079.launcher.IndexLetter
 import com.uc0079.launcher.LauncherViewModel
 import com.uc0079.launcher.UpdateChecker
+import com.uc0079.launcher.WeatherRepository
 import com.uc0079.launcher.WidgetHostController
 import android.widget.Toast
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -592,7 +593,7 @@ private fun HudHeader(
 
             Spacer(Modifier.height(6.dp))
 
-            // Main chronometer + AEUG emblem only
+            // Main chronometer + local weather
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     Modifier
@@ -619,7 +620,7 @@ private fun HudHeader(
                     )
                 }
                 Spacer(Modifier.width(10.dp))
-                AeugEmblem(size = 44.dp)
+                WeatherHud()
             }
 
             Spacer(Modifier.height(6.dp))
@@ -684,64 +685,162 @@ private fun HudHeader(
     }
 }
 
-/**
- * AEUG-style emblem for the HUD (geometric recreation).
- * Layout matches the classic mark: white ring, red lens, centered blue Earth,
- * yellow Moon at lower-right. Not an official Sunrise/Bandai asset.
- */
+private sealed class WeatherHudState {
+    data object NeedPermission : WeatherHudState()
+    data object Loading : WeatherHudState()
+    data object Unavailable : WeatherHudState()
+    data class Ready(val snap: WeatherRepository.Snapshot) : WeatherHudState()
+}
+
+/** Local weather where the AEUG mark used to sit. Tap to grant permission / refresh. */
 @Composable
-private fun AeugEmblem(size: Dp) {
-    // Flat, saturated palette close to the classic mark
-    val earthBlue = Color(0xFF1A5FE0)
-    val moonYellow = Color(0xFFF0C020)
-    val ringWhite = Color(0xFFFFFFFF)
-    val orbitRed = Color(0xFFE01820)
-
-    Canvas(modifier = Modifier.size(size)) {
-        val w = this.size.width
-        val h = this.size.height
-        val c = Offset(w * 0.5f, h * 0.5f)
-
-        // White colony ring — perfect circle, thick stroke
-        val ringOuter = w * 0.42f
-        val ringStroke = w * 0.105f
-        drawCircle(
-            color = ringWhite,
-            radius = ringOuter,
-            center = c,
-            style = Stroke(width = ringStroke)
+private fun WeatherHud() {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var state by remember {
+        mutableStateOf<WeatherHudState>(
+            if (WeatherRepository.hasLocationPermission(context)) WeatherHudState.Loading
+            else WeatherHudState.NeedPermission
         )
+    }
+    val lifecycleOwner = LocalLifecycleOwner.current
 
-        // Red horizontal lens (wider than the ring, pointed tips)
-        val redHalfW = w * 0.48f
-        val redHalfH = h * 0.115f
-        val redPath = Path().apply {
-            moveTo(c.x - redHalfW, c.y)
-            cubicTo(
-                c.x - redHalfW * 0.55f, c.y - redHalfH,
-                c.x + redHalfW * 0.55f, c.y - redHalfH,
-                c.x + redHalfW, c.y
-            )
-            cubicTo(
-                c.x + redHalfW * 0.55f, c.y + redHalfH,
-                c.x - redHalfW * 0.55f, c.y + redHalfH,
-                c.x - redHalfW, c.y
-            )
-            close()
+    fun refresh() {
+        if (!WeatherRepository.hasLocationPermission(context)) {
+            state = WeatherHudState.NeedPermission
+            return
         }
-        drawPath(redPath, color = orbitRed)
+        state = WeatherHudState.Loading
+        scope.launch {
+            val snap = WeatherRepository.fetch(context)
+            state = if (snap != null) WeatherHudState.Ready(snap) else WeatherHudState.Unavailable
+        }
+    }
 
-        // Earth — solid blue, centered on the cross
-        val earthR = w * 0.195f
-        drawCircle(color = earthBlue, radius = earthR, center = c)
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) refresh()
+        else state = WeatherHudState.NeedPermission
+    }
 
-        // Moon — lower-right, sits on the inner edge of the white ring
-        val moonR = w * 0.095f
-        val moonC = Offset(
-            c.x + earthR * 0.72f,
-            c.y + earthR * 0.78f
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME &&
+                WeatherRepository.hasLocationPermission(context)
+            ) {
+                // Soft refresh when returning to home (cached location is enough).
+                if (state !is WeatherHudState.Ready) refresh()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    LaunchedEffect(Unit) {
+        if (WeatherRepository.hasLocationPermission(context)) {
+            refresh()
+        }
+        // Refresh about every 30 minutes while this screen stays composed.
+        while (isActive) {
+            delay(30 * 60 * 1000L)
+            if (WeatherRepository.hasLocationPermission(context)) refresh()
+        }
+    }
+
+    val onTap: () -> Unit = {
+        when (state) {
+            WeatherHudState.NeedPermission ->
+                permissionLauncher.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
+            else -> refresh()
+        }
+    }
+
+    Column(
+        horizontalAlignment = Alignment.End,
+        modifier = Modifier
+            .clickable(onClick = onTap)
+            .padding(vertical = 2.dp)
+    ) {
+        Text(
+            text = "WEATHER",
+            color = G.Dim,
+            fontSize = 8.sp,
+            fontFamily = FontFamily.Monospace,
+            letterSpacing = 1.sp
         )
-        drawCircle(color = moonYellow, radius = moonR, center = moonC)
+        when (val s = state) {
+            WeatherHudState.NeedPermission -> {
+                Text(
+                    text = "位置を許可",
+                    color = G.Cyan,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace,
+                    maxLines = 1
+                )
+                Text(
+                    text = "タップ",
+                    color = G.Dim,
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
+            WeatherHudState.Loading -> {
+                Text(
+                    text = "…",
+                    color = G.Cyan,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
+            WeatherHudState.Unavailable -> {
+                Text(
+                    text = "--°",
+                    color = G.Dim,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace
+                )
+                Text(
+                    text = "再試行",
+                    color = G.Cyan,
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
+            is WeatherHudState.Ready -> {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = s.snap.symbol,
+                        fontSize = 18.sp,
+                        maxLines = 1
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = "${s.snap.tempC}°",
+                        color = G.White,
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace,
+                        maxLines = 1,
+                        softWrap = false
+                    )
+                }
+                Text(
+                    text = buildString {
+                        s.snap.place?.let { append(it); append(' ') }
+                        append(s.snap.labelJa)
+                    },
+                    color = G.Cyan,
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
     }
 }
 

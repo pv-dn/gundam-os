@@ -451,6 +451,7 @@ fun HelpSheet(
                 HelpLine("（スマホに書き出しが無い場合は PC の Chrome で書き出し）")
                 HelpLine("ブラウザの共有 → Z GUNDAM OS … Web をお気に入りへ")
                 HelpLine("セクション右の ＋ … ウィジェット／フォルダ追加")
+                HelpLine("時計右の天気 … 現在地の天気と気温（タップで更新／位置許可）")
                 HelpLine("ヘッダー下 MENU … 使い方・更新確認・ランチャー設定")
                 HelpLine("UPDATE 表示 … タップでダウンロード")
                 HelpLine("▲ ALL UNITS … 全アプリ一覧")
