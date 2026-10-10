@@ -75,7 +75,6 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.uc0079.launcher.AppFolder
 import com.uc0079.launcher.AppInfo
 import com.uc0079.launcher.FavoriteEntry
-import com.uc0079.launcher.HomeDefault
 import com.uc0079.launcher.IndexLetter
 import com.uc0079.launcher.LauncherViewModel
 import com.uc0079.launcher.UpdateChecker
@@ -254,12 +253,7 @@ private fun HomeScreen(
         }
 
         if (vm.needsHomeRepair) {
-            val ctx = LocalContext.current
-            val stale = remember(vm.needsHomeRepair, homePulse) {
-                HomeDefault.isHomeBindingStale(ctx)
-            }
             HomeRepairBanner(
-                stale = stale,
                 onRepair = { vm.openHomeAppSettings() },
                 onDismiss = { vm.dismissHomeRepairBanner() },
             )
@@ -553,7 +547,6 @@ private fun UpdateBanner(
 
 @Composable
 private fun HomeRepairBanner(
-    stale: Boolean,
     onRepair: () -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -575,11 +568,7 @@ private fun HomeRepairBanner(
                 fontFamily = FontFamily.Monospace
             )
             Text(
-                text = if (stale) {
-                    "更新でホーム設定がずれています。タップして Z GUNDAM OS を選び直してね"
-                } else {
-                    "ホームアプリが未設定です。タップして Z GUNDAM OS を「いつも使う」にしてね"
-                },
+                text = "ホームが未設定／更新で外れています。タップして Z GUNDAM OS を「いつも使う」にしてね",
                 color = G.Dim,
                 fontSize = 11.sp,
                 fontFamily = FontFamily.Monospace,
@@ -593,9 +582,7 @@ private fun HomeRepairBanner(
             color = G.Cyan,
             fontSize = 11.sp,
             fontFamily = FontFamily.Monospace,
-            modifier = Modifier
-                .clickable(onClick = onRepair)
-                .padding(4.dp)
+            modifier = Modifier.padding(4.dp)
         )
         Text(
             text = "×",

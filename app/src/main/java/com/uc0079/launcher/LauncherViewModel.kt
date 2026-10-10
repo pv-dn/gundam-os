@@ -414,7 +414,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     fun openHomeAppSettings() {
         val app = getApplication<Application>()
-        val intent = HomeDefault.repairIntent(app).apply {
+        val intent = HomeDefault.repairIntent().apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         runCatching { app.startActivity(intent) }

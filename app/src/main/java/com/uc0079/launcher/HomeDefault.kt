@@ -1,18 +1,16 @@
 package com.uc0079.launcher
 
-import android.app.RoleManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.os.Build
 import android.provider.Settings
 
 /**
  * Detects whether Z GUNDAM OS is the actual Home target.
  *
  * After sideloaded APK updates, Android often drops the preferred-activity
- * entry for HOME while ROLE_HOME can still look "held". Home then opens the
- * system chooser on every press until the user picks again.
+ * entry for HOME. Home then opens the system chooser on every press until
+ * the user picks again with "Always".
  */
 object HomeDefault {
 
@@ -32,32 +30,6 @@ object HomeDefault {
         return pkg == context.packageName
     }
 
-    fun holdsHomeRole(context: Context): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return false
-        val rm = context.getSystemService(RoleManager::class.java) ?: return false
-        return rm.isRoleAvailable(RoleManager.ROLE_HOME) && rm.isRoleHeld(RoleManager.ROLE_HOME)
-    }
-
-    /** True when role says we're Home but resolveActivity disagrees (stale). */
-    fun isHomeBindingStale(context: Context): Boolean =
-        holdsHomeRole(context) && !isDefaultHome(context)
-
-    /**
-     * Best intent to repair Home binding.
-     * Prefer Settings when stale (RoleManager no-ops if role already held).
-     * Otherwise RoleManager request on Q+, else Home settings.
-     */
-    fun repairIntent(context: Context): Intent {
-        if (isHomeBindingStale(context) || Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-            return Intent(Settings.ACTION_HOME_SETTINGS)
-        }
-        val rm = context.getSystemService(RoleManager::class.java)
-        if (rm != null &&
-            rm.isRoleAvailable(RoleManager.ROLE_HOME) &&
-            !rm.isRoleHeld(RoleManager.ROLE_HOME)
-        ) {
-            return rm.createRequestRoleIntent(RoleManager.ROLE_HOME)
-        }
-        return Intent(Settings.ACTION_HOME_SETTINGS)
-    }
+    /** Settings screen where the user can set / rebind the Home app. */
+    fun repairIntent(): Intent = Intent(Settings.ACTION_HOME_SETTINGS)
 }
