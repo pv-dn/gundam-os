@@ -12,8 +12,8 @@ android {
         applicationId = "com.uc0079.launcher"
         minSdk = 26
         targetSdk = 34
-        versionCode = 31
-        versionName = "1.30"
+        versionCode = 32
+        versionName = "1.31"
     }
 
     // Same key every CI build — required for in-place updates on the phone.

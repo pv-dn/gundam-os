@@ -75,6 +75,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.uc0079.launcher.AppFolder
 import com.uc0079.launcher.AppInfo
 import com.uc0079.launcher.FavoriteEntry
+import com.uc0079.launcher.HomeDefault
 import com.uc0079.launcher.IndexLetter
 import com.uc0079.launcher.LauncherViewModel
 import com.uc0079.launcher.UpdateChecker
@@ -131,6 +132,7 @@ fun LauncherApp(vm: LauncherViewModel, widgets: WidgetHostController) {
                 onDownload = { apkUrl ->
                     showUpdateDialog = false
                     vm.dismissUpdate()
+                    vm.markAwaitHomeRebind()
                     UpdateChecker.download(context, apkUrl) { fileUri ->
                         UpdateChecker.installApk(context, fileUri)
                     }
@@ -248,6 +250,18 @@ private fun HomeScreen(
             UpdateBanner(
                 message = updateInfo.message,
                 onOpenUpdate = onOpenUpdate,
+            )
+        }
+
+        if (vm.needsHomeRepair) {
+            val ctx = LocalContext.current
+            val stale = remember(vm.needsHomeRepair, homePulse) {
+                HomeDefault.isHomeBindingStale(ctx)
+            }
+            HomeRepairBanner(
+                stale = stale,
+                onRepair = { vm.openHomeAppSettings() },
+                onDismiss = { vm.dismissHomeRepairBanner() },
             )
         }
 
@@ -533,6 +547,64 @@ private fun UpdateBanner(
             color = G.Cyan,
             fontSize = 11.sp,
             fontFamily = FontFamily.Monospace
+        )
+    }
+}
+
+@Composable
+private fun HomeRepairBanner(
+    stale: Boolean,
+    onRepair: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp, bottom = 2.dp)
+            .hudFrame(fill = G.PanelStrong, bracket = G.Cyan)
+            .clickable(onClick = onRepair)
+            .padding(horizontal = 10.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = "HOME 再設定",
+                color = G.Cyan,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace
+            )
+            Text(
+                text = if (stale) {
+                    "更新でホーム設定がずれています。タップして Z GUNDAM OS を選び直してね"
+                } else {
+                    "ホームアプリが未設定です。タップして Z GUNDAM OS を「いつも使う」にしてね"
+                },
+                color = G.Dim,
+                fontSize = 11.sp,
+                fontFamily = FontFamily.Monospace,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        Spacer(Modifier.width(8.dp))
+        Text(
+            text = "設定",
+            color = G.Cyan,
+            fontSize = 11.sp,
+            fontFamily = FontFamily.Monospace,
+            modifier = Modifier
+                .clickable(onClick = onRepair)
+                .padding(4.dp)
+        )
+        Text(
+            text = "×",
+            color = G.Dim,
+            fontSize = 14.sp,
+            fontFamily = FontFamily.Monospace,
+            modifier = Modifier
+                .clickable(onClick = onDismiss)
+                .padding(4.dp)
         )
     }
 }

@@ -63,6 +63,7 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         // Reflect installs / uninstalls that happened while we were away.
         vm.refresh()
+        vm.refreshHomeBinding()
         vm.checkForUpdate()
     }
 }

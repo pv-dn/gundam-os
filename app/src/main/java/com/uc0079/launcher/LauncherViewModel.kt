@@ -55,8 +55,56 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     var importingBookmarks by mutableStateOf(false)
         private set
 
+    /**
+     * True when Z GUNDAM OS is not the resolved Home target
+     * (common after sideloaded APK updates).
+     */
+    var needsHomeRepair by mutableStateOf(false)
+        private set
+
+    /** Hide banner for this process until Home is fixed (or app restarts). */
+    private var homeRepairDismissed = false
+
     fun onHomeIntent() {
         homePulse++
+    }
+
+    fun refreshHomeBinding() {
+        val app = getApplication<Application>()
+        val isDefault = HomeDefault.isDefaultHome(app)
+        if (isDefault) {
+            homeRepairDismissed = false
+            needsHomeRepair = false
+            if (prefs.getBoolean(KEY_AWAIT_HOME_REBIND, false)) {
+                prefs.edit()
+                    .putBoolean(KEY_AWAIT_HOME_REBIND, false)
+                    .putBoolean(KEY_HOME_REBIND_TOASTED, false)
+                    .apply()
+            }
+            return
+        }
+        needsHomeRepair = !homeRepairDismissed
+        if (!prefs.getBoolean(KEY_AWAIT_HOME_REBIND, false)) return
+        // One-shot toast after APK update; banner stays until fixed or dismissed.
+        if (!prefs.getBoolean(KEY_HOME_REBIND_TOASTED, false)) {
+            prefs.edit().putBoolean(KEY_HOME_REBIND_TOASTED, true).apply()
+            shareHint =
+                "更新後はホームアプリを「Z GUNDAM OS」に選び直してね（いつも使う）"
+        }
+    }
+
+    fun markAwaitHomeRebind() {
+        prefs.edit()
+            .putBoolean(KEY_AWAIT_HOME_REBIND, true)
+            .putBoolean(KEY_HOME_REBIND_TOASTED, false)
+            .apply()
+        homeRepairDismissed = false
+        needsHomeRepair = true
+    }
+
+    fun dismissHomeRepairBanner() {
+        homeRepairDismissed = true
+        needsHomeRepair = false
     }
 
     fun consumeShareHint() {
@@ -365,10 +413,11 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun openHomeAppSettings() {
-        val intent = Intent(Settings.ACTION_HOME_SETTINGS).apply {
+        val app = getApplication<Application>()
+        val intent = HomeDefault.repairIntent(app).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
-        runCatching { getApplication<Application>().startActivity(intent) }
+        runCatching { app.startActivity(intent) }
     }
 
     fun launchApp(pkg: String) {
@@ -454,6 +503,8 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         private const val KEY_FAV = "favorites"
         private const val KEY_FOLDERS = "folders"
         private const val KEY_LABELS = "custom_labels"
+        private const val KEY_AWAIT_HOME_REBIND = "await_home_rebind"
+        private const val KEY_HOME_REBIND_TOASTED = "home_rebind_toasted"
 
         fun normalizeUrl(raw: String): String? {
             var s = raw.trim()
