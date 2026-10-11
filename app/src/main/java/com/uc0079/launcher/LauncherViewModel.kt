@@ -71,8 +71,9 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     fun refreshHomeBinding() {
         val app = getApplication<Application>()
-        val isDefault = HomeDefault.isDefaultHome(app)
-        if (isDefault) {
+        // Prefer preferred-activity: that's what stops the Home-button chooser.
+        val ok = !HomeDefault.needsRepair(app)
+        if (ok) {
             homeRepairDismissed = false
             needsHomeRepair = false
             if (prefs.getBoolean(KEY_AWAIT_HOME_REBIND, false)) {
@@ -89,7 +90,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         if (!prefs.getBoolean(KEY_HOME_REBIND_TOASTED, false)) {
             prefs.edit().putBoolean(KEY_HOME_REBIND_TOASTED, true).apply()
             shareHint =
-                "更新後はホームアプリを「Z GUNDAM OS」に選び直してね（いつも使う）"
+                "更新後はホームを設定し直してね。バナーの「設定」→ Z GUNDAM OS → いつも使う"
         }
     }
 
@@ -412,9 +413,10 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         saveFolders()
     }
 
+    /** Fallback from non-UI callers; UI should prefer [HomeDefault.bestRepairIntent]. */
     fun openHomeAppSettings() {
         val app = getApplication<Application>()
-        val intent = HomeDefault.repairIntent().apply {
+        val intent = HomeDefault.bestRepairIntent(app).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         runCatching { app.startActivity(intent) }

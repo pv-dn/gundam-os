@@ -454,7 +454,7 @@ fun HelpSheet(
                 HelpLine("時計右の天気 … 現在地の天気と気温（タップで更新／位置許可）")
                 HelpLine("ヘッダー下 MENU … 使い方・更新確認・ランチャー設定")
                 HelpLine("UPDATE 表示 … タップでダウンロード")
-                HelpLine("ホーム再設定バナー … APK更新で外れたとき、タップで直す")
+                HelpLine("HOME再設定バナー … タップ→Z GUNDAM OS→常に／いつも使う")
                 HelpLine("▲ ALL UNITS … 全アプリ一覧")
                 HelpLine("右端 A〜Z … かな／漢字もローマ字頭文字で分類")
                 Spacer(Modifier.height(12.dp))

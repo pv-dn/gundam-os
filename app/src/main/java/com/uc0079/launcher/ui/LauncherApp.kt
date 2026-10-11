@@ -75,6 +75,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.uc0079.launcher.AppFolder
 import com.uc0079.launcher.AppInfo
 import com.uc0079.launcher.FavoriteEntry
+import com.uc0079.launcher.HomeDefault
 import com.uc0079.launcher.IndexLetter
 import com.uc0079.launcher.LauncherViewModel
 import com.uc0079.launcher.UpdateChecker
@@ -232,6 +233,21 @@ private fun HomeScreen(
         if (uri != null) vm.importBookmarksFromUri(uri)
     }
 
+    val context = LocalContext.current
+    val homeRoleLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) {
+        vm.refreshHomeBinding()
+    }
+    fun launchHomeRepair() {
+        val intent = HomeDefault.bestRepairIntent(context)
+        if (HomeDefault.isRoleRequestIntent(intent)) {
+            homeRoleLauncher.launch(intent)
+        } else {
+            runCatching { context.startActivity(intent) }
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -254,7 +270,7 @@ private fun HomeScreen(
 
         if (vm.needsHomeRepair) {
             HomeRepairBanner(
-                onRepair = { vm.openHomeAppSettings() },
+                onRepair = { launchHomeRepair() },
                 onDismiss = { vm.dismissHomeRepairBanner() },
             )
         }
@@ -462,7 +478,7 @@ private fun HomeScreen(
         }
         HelpSheet(
             onDismiss = { helpOpen = false },
-            onOpenLauncherSettings = { vm.openHomeAppSettings() },
+            onOpenLauncherSettings = { launchHomeRepair() },
             onCheckUpdate = { vm.checkForUpdate(force = true) },
             versionLabel = ver,
         )
@@ -568,11 +584,11 @@ private fun HomeRepairBanner(
                 fontFamily = FontFamily.Monospace
             )
             Text(
-                text = "ホームが未設定／更新で外れています。タップして Z GUNDAM OS を「いつも使う」にしてね",
+                text = "タップ → Z GUNDAM OS を選んで「常に」／「いつも使う」。これでホームボタンのたびに出なくなります",
                 color = G.Dim,
                 fontSize = 11.sp,
                 fontFamily = FontFamily.Monospace,
-                maxLines = 2,
+                maxLines = 3,
                 overflow = TextOverflow.Ellipsis
             )
         }
