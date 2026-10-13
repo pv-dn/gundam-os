@@ -1,5 +1,6 @@
 package com.uc0079.launcher
 
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -9,28 +10,16 @@ import android.provider.Settings
 /**
  * Home-app binding helpers.
  *
- * Sideloaded APK updates often clear the preferred HOME activity. On Android 10+
- * the sticky fix is ROLE_HOME (RoleManager); Settings alone can look set while
- * the Home button still shows the system chooser.
+ * After sideload updates, Android often drops the preferred-activity entry for
+ * HOME while ROLE_HOME can still look held. Home then shows the system chooser
+ * on every press. Role request no-ops when the role is already held — the
+ * reliable repair is [forceSystemHomeChooser] (FakeHome toggle).
  */
 object HomeDefault {
 
-    /** [RoleManager.createRequestRoleIntent] action. */
     const val ACTION_REQUEST_ROLE = "android.app.role.action.REQUEST_ROLE"
-
     private const val ROLE_HOME = "android.app.role.HOME"
 
-    fun isDefaultHome(context: Context): Boolean {
-        // Preferred activity is what the Home button actually uses.
-        if (isPreferredHomeActivity(context)) return true
-        // Some OEMs resolve late; role held is still a strong signal.
-        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && isHomeRoleHeld(context)
-    }
-
-    /**
-     * True when Home has no usable default (chooser will appear on Home press).
-     * Role held but preferred cleared counts as broken.
-     */
     fun needsRepair(context: Context): Boolean = !isPreferredHomeActivity(context)
 
     fun isPreferredHomeActivity(context: Context): Boolean {
@@ -44,7 +33,8 @@ object HomeDefault {
         if (pkg == "android") return false
         val name = info.name.orEmpty()
         if (name.contains("Resolver", ignoreCase = true) ||
-            name.contains("Chooser", ignoreCase = true)
+            name.contains("Chooser", ignoreCase = true) ||
+            name.contains("FakeHome", ignoreCase = true)
         ) {
             return false
         }
@@ -62,27 +52,74 @@ object HomeDefault {
         } ?: false
     }
 
+    fun isHomeBindingStale(context: Context): Boolean =
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+            isHomeRoleHeld(context) &&
+            !isPreferredHomeActivity(context)
+
     /**
-     * Best UI to rebind Home:
-     * - Role not held → RoleManager request (sticks on Android 10+)
-     * - Role held / old Android / role unavailable → Home settings
+     * Prefer RoleManager when the role is not held yet.
+     * When role is held but preferred is gone (stale), Role request is a no-op —
+     * caller should use [forceSystemHomeChooser] instead.
      */
-    fun bestRepairIntent(context: Context): Intent {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && !isHomeRoleHeld(context)) {
-            val request = roleCall(context) { rm, cls ->
-                val available = cls.getMethod("isRoleAvailable", String::class.java)
-                    .invoke(rm, ROLE_HOME) as Boolean
-                if (!available) return@roleCall null
-                cls.getMethod("createRequestRoleIntent", String::class.java)
-                    .invoke(rm, ROLE_HOME) as Intent
-            }
-            if (request != null) return request
+    fun roleRequestIntentOrNull(context: Context): Intent? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
+        if (isHomeRoleHeld(context)) return null
+        return roleCall(context) { rm, cls ->
+            val available = cls.getMethod("isRoleAvailable", String::class.java)
+                .invoke(rm, ROLE_HOME) as Boolean
+            if (!available) return@roleCall null
+            cls.getMethod("createRequestRoleIntent", String::class.java)
+                .invoke(rm, ROLE_HOME) as Intent
         }
-        return Intent(Settings.ACTION_HOME_SETTINGS)
     }
+
+    fun settingsIntent(): Intent = Intent(Settings.ACTION_HOME_SETTINGS)
 
     fun isRoleRequestIntent(intent: Intent): Boolean =
         intent.action == ACTION_REQUEST_ROLE
+
+    /**
+     * Temporarily enables [FakeHomeActivity] so Android drops the preferred HOME
+     * entry, then starts the Home intent (native Always / Just once UI).
+     * FakeHome is always disabled again in finally.
+     */
+    fun forceSystemHomeChooser(context: Context) {
+        ensureFakeHomeDisabled(context)
+        val pm = context.packageManager
+        val fake = ComponentName(context, FakeHomeActivity::class.java)
+        pm.setComponentEnabledSetting(
+            fake,
+            PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+            PackageManager.DONT_KILL_APP
+        )
+        try {
+            val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+        } finally {
+            pm.setComponentEnabledSetting(
+                fake,
+                PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                PackageManager.DONT_KILL_APP
+            )
+        }
+    }
+
+    /** Safety: if FakeHome was left enabled, turn it off (avoids perpetual chooser). */
+    fun ensureFakeHomeDisabled(context: Context) {
+        val pm = context.packageManager
+        val fake = ComponentName(context, FakeHomeActivity::class.java)
+        val state = pm.getComponentEnabledSetting(fake)
+        if (state == PackageManager.COMPONENT_ENABLED_STATE_ENABLED) {
+            pm.setComponentEnabledSetting(
+                fake,
+                PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                PackageManager.DONT_KILL_APP
+            )
+        }
+    }
 
     private fun <T> roleCall(context: Context, block: (Any, Class<*>) -> T): T? {
         return runCatching {

@@ -15,6 +15,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // If a previous crash left FakeHome enabled, Home would chooser every press.
+        HomeDefault.ensureFakeHomeDisabled(this)
         widgets = WidgetHostController(this)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         setContent {

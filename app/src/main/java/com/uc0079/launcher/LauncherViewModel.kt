@@ -90,7 +90,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         if (!prefs.getBoolean(KEY_HOME_REBIND_TOASTED, false)) {
             prefs.edit().putBoolean(KEY_HOME_REBIND_TOASTED, true).apply()
             shareHint =
-                "更新後はホームを設定し直してね。バナーの「設定」→ Z GUNDAM OS → いつも使う"
+                "更新後はバナー「HOME再設定」→ Z GUNDAM OS → 常に／いつも使う"
         }
     }
 
@@ -413,13 +413,10 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         saveFolders()
     }
 
-    /** Fallback from non-UI callers; UI should prefer [HomeDefault.bestRepairIntent]. */
+    /** Opens the native Always/Just-once Home chooser (FakeHome repair). */
     fun openHomeAppSettings() {
         val app = getApplication<Application>()
-        val intent = HomeDefault.bestRepairIntent(app).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-        runCatching { app.startActivity(intent) }
+        runCatching { HomeDefault.forceSystemHomeChooser(app) }
     }
 
     fun launchApp(pkg: String) {

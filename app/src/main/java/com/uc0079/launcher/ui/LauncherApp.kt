@@ -238,14 +238,25 @@ private fun HomeScreen(
         ActivityResultContracts.StartActivityForResult()
     ) {
         vm.refreshHomeBinding()
+        // Role alone can leave preferred-HOME stale — force Always/Just once next.
+        if (HomeDefault.needsRepair(context)) {
+            runCatching { HomeDefault.forceSystemHomeChooser(context) }
+        } else {
+            Toast.makeText(context, "ホーム設定OK", Toast.LENGTH_SHORT).show()
+        }
     }
     fun launchHomeRepair() {
-        val intent = HomeDefault.bestRepairIntent(context)
-        if (HomeDefault.isRoleRequestIntent(intent)) {
-            homeRoleLauncher.launch(intent)
-        } else {
-            runCatching { context.startActivity(intent) }
+        // Stale ROLE_HOME → Role dialog is a no-op; go straight to native chooser.
+        if (HomeDefault.isHomeBindingStale(context)) {
+            runCatching { HomeDefault.forceSystemHomeChooser(context) }
+            return
         }
+        val roleIntent = HomeDefault.roleRequestIntentOrNull(context)
+        if (roleIntent != null) {
+            homeRoleLauncher.launch(roleIntent)
+            return
+        }
+        runCatching { HomeDefault.forceSystemHomeChooser(context) }
     }
 
     Column(
@@ -584,7 +595,7 @@ private fun HomeRepairBanner(
                 fontFamily = FontFamily.Monospace
             )
             Text(
-                text = "タップ → Z GUNDAM OS を選んで「常に」／「いつも使う」。これでホームボタンのたびに出なくなります",
+                text = "タップ→一覧から「Z GUNDAM OS」→必ず「常に／いつも使う」（※選ばない は触らない）",
                 color = G.Dim,
                 fontSize = 11.sp,
                 fontFamily = FontFamily.Monospace,
