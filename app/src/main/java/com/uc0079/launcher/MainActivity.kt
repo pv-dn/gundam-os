@@ -4,8 +4,8 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
-import androidx.core.view.WindowCompat
 import com.uc0079.launcher.ui.LauncherApp
 
 class MainActivity : ComponentActivity() {
@@ -14,9 +14,9 @@ class MainActivity : ComponentActivity() {
     private lateinit var widgets: WidgetHostController
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         widgets = WidgetHostController(this)
-        WindowCompat.setDecorFitsSystemWindows(window, false)
         setContent {
             LauncherApp(vm, widgets)
         }
@@ -27,7 +27,7 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         if (handleShareIntent(intent)) return
-        // Home button while already in the launcher (e.g. all-apps screen).
+        // Home / gesture while already in the launcher (e.g. all-apps).
         if (intent.hasCategory(Intent.CATEGORY_HOME) ||
             intent.action == Intent.ACTION_MAIN
         ) {

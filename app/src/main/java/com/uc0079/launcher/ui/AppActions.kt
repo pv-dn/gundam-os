@@ -454,8 +454,9 @@ fun HelpSheet(
                 HelpLine("時計右の天気 … 現在地の天気と気温（タップで更新／位置許可）")
                 HelpLine("ヘッダー下 MENU … 使い方・更新確認・ホーム設定")
                 HelpLine("UPDATE 表示 … タップでダウンロード")
-                HelpLine("ホームボタン … Z GUNDAM OS に戻る（常に設定時）")
-                HelpLine("更新後に選択が出たら … MENU→ホーム設定→常に")
+                HelpLine("ホームボタン／ジェスチャー … Z GUNDAM OS に戻る（ホーム役割設定時）")
+                HelpLine("Pixel … HOME設定バナー→システムの確認で役割を付与")
+                HelpLine("更新後に外れたら … MENU→ホームアプリを設定")
                 HelpLine("▲ ALL UNITS … 全アプリ一覧")
                 HelpLine("右端 A〜Z … かな／漢字もローマ字頭文字で分類")
                 Spacer(Modifier.height(12.dp))
@@ -525,7 +526,7 @@ fun UpdateDialog(
                 )
                 Spacer(Modifier.height(10.dp))
                 Text(
-                    "※ 更新後、ホームの「常に」が外れることがあります。そのときは MENU→ホーム設定で Z GUNDAM OS を選び直してね。",
+                    "※ 更新後、ホーム役割が外れることがあります。MENU→ホームアプリを設定（Pixel は確認ダイアログ）で付け直してね。",
                     color = G.Yellow,
                     fontFamily = FontFamily.Monospace,
                     fontSize = 12.sp

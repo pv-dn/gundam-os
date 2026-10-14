@@ -37,10 +37,11 @@
             android:clearTaskOnLaunch="true"
             android:stateNotNeeded="true"
             android:resumeWhilePausing="true"
+            android:enableOnBackInvokedCallback="true"
             android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|screenLayout|smallestScreenSize|uiMode|density"
             android:theme="@style/Theme.GundamLauncher"
             android:windowSoftInputMode="adjustResize">
-            <!-- System home (separate from LAUNCHER). No FakeHome stub. -->
+            <!-- Pixel / stock: HOME+DEFAULT qualifies for ROLE_HOME. -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.HOME" />

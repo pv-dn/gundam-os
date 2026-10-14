@@ -61,8 +61,8 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     private var homeRepairDismissed = false
 
-    /** One-shot note that Home mode is back (v36). */
-    var showModeHint by mutableStateOf(!prefs.getBoolean(KEY_MODE_HINT_SEEN_V36, false))
+    /** One-shot Pixel / home setup note (v37). */
+    var showModeHint by mutableStateOf(!prefs.getBoolean(KEY_MODE_HINT_SEEN_V37, false))
         private set
 
     fun onHomeIntent() {
@@ -87,8 +87,11 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         if (!prefs.getBoolean(KEY_AWAIT_HOME_REBIND, false)) return
         if (!prefs.getBoolean(KEY_HOME_REBIND_TOASTED, false)) {
             prefs.edit().putBoolean(KEY_HOME_REBIND_TOASTED, true).apply()
-            shareHint =
-                "更新後はホーム設定で Z GUNDAM OS を「常に」にしてね"
+            shareHint = if (HomeDefault.isPixelDevice()) {
+                "更新後はバナーからホーム役割を付け直してね（Pixel）"
+            } else {
+                "更新後はホーム設定で Z GUNDAM OS を選んでね"
+            }
         }
     }
 
@@ -108,13 +111,19 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     fun dismissModeHint() {
         showModeHint = false
-        prefs.edit().putBoolean(KEY_MODE_HINT_SEEN_V36, true).apply()
+        prefs.edit().putBoolean(KEY_MODE_HINT_SEEN_V37, true).apply()
     }
+
+    /** Intent for UI (Role request or Settings). Prefer ActivityResult for Role. */
+    fun homeRepairIntent(): Intent =
+        HomeDefault.repairIntent(getApplication())
 
     fun openHomeAppSettings() {
         val app = getApplication<Application>()
-        val intent = HomeDefault.settingsIntent().apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        val intent = HomeDefault.repairIntent(app).apply {
+            if (!HomeDefault.isRoleRequestIntent(this)) {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
         }
         runCatching { app.startActivity(intent) }
     }
@@ -507,7 +516,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         private const val KEY_FAV = "favorites"
         private const val KEY_FOLDERS = "folders"
         private const val KEY_LABELS = "custom_labels"
-        private const val KEY_MODE_HINT_SEEN_V36 = "mode_hint_seen_v36"
+        private const val KEY_MODE_HINT_SEEN_V37 = "mode_hint_seen_v37"
         private const val KEY_AWAIT_HOME_REBIND = "await_home_rebind"
         private const val KEY_HOME_REBIND_TOASTED = "home_rebind_toasted"
 

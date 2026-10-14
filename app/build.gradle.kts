@@ -6,14 +6,14 @@ plugins {
 
 android {
     namespace = "com.uc0079.launcher"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.uc0079.launcher"
         minSdk = 26
-        targetSdk = 34
-        versionCode = 36
-        versionName = "1.35"
+        targetSdk = 35
+        versionCode = 37
+        versionName = "1.36"
     }
 
     // Same key every CI build — required for in-place updates on the phone.

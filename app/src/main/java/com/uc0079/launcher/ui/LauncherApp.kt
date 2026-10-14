@@ -75,6 +75,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.uc0079.launcher.AppFolder
 import com.uc0079.launcher.AppInfo
 import com.uc0079.launcher.FavoriteEntry
+import com.uc0079.launcher.HomeDefault
 import com.uc0079.launcher.IndexLetter
 import com.uc0079.launcher.LauncherViewModel
 import com.uc0079.launcher.UpdateChecker
@@ -232,6 +233,24 @@ private fun HomeScreen(
         if (uri != null) vm.importBookmarksFromUri(uri)
     }
 
+    val context = LocalContext.current
+    val homeRoleLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) {
+        vm.refreshHomeBinding()
+        if (!HomeDefault.needsRepair(context)) {
+            Toast.makeText(context, "ホーム設定OK", Toast.LENGTH_SHORT).show()
+        }
+    }
+    fun launchHomeRepair() {
+        val intent = vm.homeRepairIntent()
+        if (HomeDefault.isRoleRequestIntent(intent)) {
+            homeRoleLauncher.launch(intent)
+        } else {
+            runCatching { context.startActivity(intent) }
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -258,7 +277,8 @@ private fun HomeScreen(
 
         if (vm.needsHomeRepair) {
             HomeRepairBanner(
-                onRepair = { vm.openHomeAppSettings() },
+                pixel = HomeDefault.isPixelDevice(),
+                onRepair = { launchHomeRepair() },
                 onDismiss = { vm.dismissHomeRepairBanner() },
             )
         }
@@ -466,7 +486,7 @@ private fun HomeScreen(
         }
         HelpSheet(
             onDismiss = { helpOpen = false },
-            onOpenLauncherSettings = { vm.openHomeAppSettings() },
+            onOpenLauncherSettings = { launchHomeRepair() },
             onCheckUpdate = { vm.checkForUpdate(force = true) },
             versionLabel = ver,
         )
@@ -561,14 +581,14 @@ private fun ModeHintBanner(onDismiss: () -> Unit) {
     ) {
         Column(Modifier.weight(1f)) {
             Text(
-                text = "ホーム復帰 (v36)",
+                text = "Pixel 向け (v37)",
                 color = G.Cyan,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 fontFamily = FontFamily.Monospace
             )
             Text(
-                text = "またシステムホームになります。下のバナー／MENUから Z GUNDAM OS を「常に」にしてね",
+                text = "Pixel では「ホームの役割」で固定する。下の HOME 設定をタップ→ Z GUNDAM OS を許可してね",
                 color = G.Dim,
                 fontSize = 11.sp,
                 fontFamily = FontFamily.Monospace,
@@ -591,6 +611,7 @@ private fun ModeHintBanner(onDismiss: () -> Unit) {
 
 @Composable
 private fun HomeRepairBanner(
+    pixel: Boolean,
     onRepair: () -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -612,7 +633,11 @@ private fun HomeRepairBanner(
                 fontFamily = FontFamily.Monospace
             )
             Text(
-                text = "タップ→ホームアプリで Z GUNDAM OS を選んで「常に」。ピカピカホームに戻らなくなります",
+                text = if (pixel) {
+                    "タップ→システムの確認で Z GUNDAM OS をホームに設定（Pixel 推奨）"
+                } else {
+                    "タップ→ホームアプリで Z GUNDAM OS を選んで「常に」"
+                },
                 color = G.Dim,
                 fontSize = 11.sp,
                 fontFamily = FontFamily.Monospace,

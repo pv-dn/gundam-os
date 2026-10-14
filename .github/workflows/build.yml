@@ -24,6 +24,9 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
 
+      - name: Install Android SDK Platform 35
+        run: sdkmanager "platforms;android-35"
+
       - name: Generate Gradle wrapper
         run: gradle wrapper --gradle-version 8.9
 
@@ -51,7 +54,7 @@ jobs:
           tag_name: v${{ steps.ver.outputs.code }}
           name: "Z GUNDAM OS v${{ steps.ver.outputs.code }}"
           body: |
-            最新ビルド。下の gundam-os.apk をスマホのブラウザでダウンロードしてインストールしてください。
+            Pixel 9 Pro 向け調整版。下の gundam-os.apk を入れたあと、HOME 設定バナーからホーム役割を付けてください。
 
             ※ v4 より前の版が入っている場合は、一度アンインストールしてから入れてください（署名を固定したため、この1回だけ必要です）。
           files: gundam-os.apk
