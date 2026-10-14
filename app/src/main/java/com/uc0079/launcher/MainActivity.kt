@@ -27,8 +27,10 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         if (handleShareIntent(intent)) return
-        // Relaunch from app icon while already open → scroll home to top.
-        if (intent.action == Intent.ACTION_MAIN) {
+        // Home button while already in the launcher (e.g. all-apps screen).
+        if (intent.hasCategory(Intent.CATEGORY_HOME) ||
+            intent.action == Intent.ACTION_MAIN
+        ) {
             vm.onHomeIntent()
         }
     }
@@ -40,7 +42,6 @@ class MainActivity : ComponentActivity() {
         val text = intent.getStringExtra(Intent.EXTRA_TEXT)
         val subject = intent.getStringExtra(Intent.EXTRA_SUBJECT)
         vm.handleSharedText(text, subject)
-        // Consume so rotation / resume doesn't re-add.
         intent.action = Intent.ACTION_MAIN
         intent.removeExtra(Intent.EXTRA_TEXT)
         intent.removeExtra(Intent.EXTRA_SUBJECT)
@@ -60,6 +61,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         vm.refresh()
+        vm.refreshHomeBinding()
         vm.checkForUpdate()
     }
 }

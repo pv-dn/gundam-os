@@ -423,6 +423,7 @@ fun FolderActionSheet(
 @Composable
 fun HelpSheet(
     onDismiss: () -> Unit,
+    onOpenLauncherSettings: () -> Unit,
     onCheckUpdate: () -> Unit,
     versionLabel: String,
 ) {
@@ -451,16 +452,20 @@ fun HelpSheet(
                 HelpLine("ブラウザの共有 → Z GUNDAM OS … Web をお気に入りへ")
                 HelpLine("セクション右の ＋ … ウィジェット／フォルダ追加")
                 HelpLine("時計右の天気 … 現在地の天気と気温（タップで更新／位置許可）")
-                HelpLine("ヘッダー下 MENU … 使い方・更新確認")
+                HelpLine("ヘッダー下 MENU … 使い方・更新確認・ホーム設定")
                 HelpLine("UPDATE 表示 … タップでダウンロード")
-                HelpLine("このアプリは通常アプリ（システムホームではない）")
-                HelpLine("ホームボタン … 標準のホームへ戻る／アプリアイコンから開き直し")
+                HelpLine("ホームボタン … Z GUNDAM OS に戻る（常に設定時）")
+                HelpLine("更新後に選択が出たら … MENU→ホーム設定→常に")
                 HelpLine("▲ ALL UNITS … 全アプリ一覧")
                 HelpLine("右端 A〜Z … かな／漢字もローマ字頭文字で分類")
                 Spacer(Modifier.height(12.dp))
                 ActionLine("\u21BB  更新を確認", G.Cyan) {
                     onDismiss()
                     onCheckUpdate()
+                }
+                ActionLine("\u2699  ホームアプリを設定", G.Cyan) {
+                    onDismiss()
+                    onOpenLauncherSettings()
                 }
             }
         },
@@ -517,6 +522,13 @@ fun UpdateDialog(
                     color = G.Dim,
                     fontFamily = FontFamily.Monospace,
                     fontSize = 13.sp
+                )
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    "※ 更新後、ホームの「常に」が外れることがあります。そのときは MENU→ホーム設定で Z GUNDAM OS を選び直してね。",
+                    color = G.Yellow,
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 12.sp
                 )
             }
         },

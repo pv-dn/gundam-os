@@ -55,17 +55,68 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     var importingBookmarks by mutableStateOf(false)
         private set
 
-    /** One-shot note after switching away from system-HOME mode (v35+). */
-    var showModeHint by mutableStateOf(!prefs.getBoolean(KEY_MODE_HINT_SEEN, false))
+    /** True when we are not the preferred system Home app. */
+    var needsHomeRepair by mutableStateOf(false)
+        private set
+
+    private var homeRepairDismissed = false
+
+    /** One-shot note that Home mode is back (v36). */
+    var showModeHint by mutableStateOf(!prefs.getBoolean(KEY_MODE_HINT_SEEN_V36, false))
         private set
 
     fun onHomeIntent() {
         homePulse++
     }
 
+    fun refreshHomeBinding() {
+        val app = getApplication<Application>()
+        val ok = !HomeDefault.needsRepair(app)
+        if (ok) {
+            homeRepairDismissed = false
+            needsHomeRepair = false
+            if (prefs.getBoolean(KEY_AWAIT_HOME_REBIND, false)) {
+                prefs.edit()
+                    .putBoolean(KEY_AWAIT_HOME_REBIND, false)
+                    .putBoolean(KEY_HOME_REBIND_TOASTED, false)
+                    .apply()
+            }
+            return
+        }
+        needsHomeRepair = !homeRepairDismissed
+        if (!prefs.getBoolean(KEY_AWAIT_HOME_REBIND, false)) return
+        if (!prefs.getBoolean(KEY_HOME_REBIND_TOASTED, false)) {
+            prefs.edit().putBoolean(KEY_HOME_REBIND_TOASTED, true).apply()
+            shareHint =
+                "更新後はホーム設定で Z GUNDAM OS を「常に」にしてね"
+        }
+    }
+
+    fun markAwaitHomeRebind() {
+        prefs.edit()
+            .putBoolean(KEY_AWAIT_HOME_REBIND, true)
+            .putBoolean(KEY_HOME_REBIND_TOASTED, false)
+            .apply()
+        homeRepairDismissed = false
+        needsHomeRepair = true
+    }
+
+    fun dismissHomeRepairBanner() {
+        homeRepairDismissed = true
+        needsHomeRepair = false
+    }
+
     fun dismissModeHint() {
         showModeHint = false
-        prefs.edit().putBoolean(KEY_MODE_HINT_SEEN, true).apply()
+        prefs.edit().putBoolean(KEY_MODE_HINT_SEEN_V36, true).apply()
+    }
+
+    fun openHomeAppSettings() {
+        val app = getApplication<Application>()
+        val intent = HomeDefault.settingsIntent().apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        runCatching { app.startActivity(intent) }
     }
 
     fun consumeShareHint() {
@@ -456,7 +507,9 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         private const val KEY_FAV = "favorites"
         private const val KEY_FOLDERS = "folders"
         private const val KEY_LABELS = "custom_labels"
-        private const val KEY_MODE_HINT_SEEN = "mode_hint_seen_v35"
+        private const val KEY_MODE_HINT_SEEN_V36 = "mode_hint_seen_v36"
+        private const val KEY_AWAIT_HOME_REBIND = "await_home_rebind"
+        private const val KEY_HOME_REBIND_TOASTED = "home_rebind_toasted"
 
         fun normalizeUrl(raw: String): String? {
             var s = raw.trim()

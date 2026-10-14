@@ -131,6 +131,7 @@ fun LauncherApp(vm: LauncherViewModel, widgets: WidgetHostController) {
                 onDownload = { apkUrl ->
                     showUpdateDialog = false
                     vm.dismissUpdate()
+                    vm.markAwaitHomeRebind()
                     UpdateChecker.download(context, apkUrl) { fileUri ->
                         UpdateChecker.installApk(context, fileUri)
                     }
@@ -253,6 +254,13 @@ private fun HomeScreen(
 
         if (vm.showModeHint) {
             ModeHintBanner(onDismiss = { vm.dismissModeHint() })
+        }
+
+        if (vm.needsHomeRepair) {
+            HomeRepairBanner(
+                onRepair = { vm.openHomeAppSettings() },
+                onDismiss = { vm.dismissHomeRepairBanner() },
+            )
         }
 
         Column(
@@ -458,6 +466,7 @@ private fun HomeScreen(
         }
         HelpSheet(
             onDismiss = { helpOpen = false },
+            onOpenLauncherSettings = { vm.openHomeAppSettings() },
             onCheckUpdate = { vm.checkForUpdate(force = true) },
             versionLabel = ver,
         )
@@ -552,14 +561,14 @@ private fun ModeHintBanner(onDismiss: () -> Unit) {
     ) {
         Column(Modifier.weight(1f)) {
             Text(
-                text = "方式変更 (v35)",
+                text = "ホーム復帰 (v36)",
                 color = G.Cyan,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 fontFamily = FontFamily.Monospace
             )
             Text(
-                text = "システムホームにはなりません。アプリアイコンから開いてね。ホームボタンは標準ホームへ戻ります",
+                text = "またシステムホームになります。下のバナー／MENUから Z GUNDAM OS を「常に」にしてね",
                 color = G.Dim,
                 fontSize = 11.sp,
                 fontFamily = FontFamily.Monospace,
@@ -572,6 +581,57 @@ private fun ModeHintBanner(onDismiss: () -> Unit) {
             text = "OK",
             color = G.Cyan,
             fontSize = 11.sp,
+            fontFamily = FontFamily.Monospace,
+            modifier = Modifier
+                .clickable(onClick = onDismiss)
+                .padding(4.dp)
+        )
+    }
+}
+
+@Composable
+private fun HomeRepairBanner(
+    onRepair: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp, bottom = 2.dp)
+            .hudFrame(fill = G.PanelStrong, bracket = G.Cyan)
+            .clickable(onClick = onRepair)
+            .padding(horizontal = 10.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = "HOME 設定",
+                color = G.Cyan,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace
+            )
+            Text(
+                text = "タップ→ホームアプリで Z GUNDAM OS を選んで「常に」。ピカピカホームに戻らなくなります",
+                color = G.Dim,
+                fontSize = 11.sp,
+                fontFamily = FontFamily.Monospace,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        Spacer(Modifier.width(8.dp))
+        Text(
+            text = "設定",
+            color = G.Cyan,
+            fontSize = 11.sp,
+            fontFamily = FontFamily.Monospace,
+            modifier = Modifier.padding(4.dp)
+        )
+        Text(
+            text = "×",
+            color = G.Dim,
+            fontSize = 14.sp,
             fontFamily = FontFamily.Monospace,
             modifier = Modifier
                 .clickable(onClick = onDismiss)
