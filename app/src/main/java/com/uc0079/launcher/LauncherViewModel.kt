@@ -55,57 +55,17 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     var importingBookmarks by mutableStateOf(false)
         private set
 
-    /**
-     * True when Z GUNDAM OS is not the resolved Home target
-     * (common after sideloaded APK updates).
-     */
-    var needsHomeRepair by mutableStateOf(false)
+    /** One-shot note after switching away from system-HOME mode (v35+). */
+    var showModeHint by mutableStateOf(!prefs.getBoolean(KEY_MODE_HINT_SEEN, false))
         private set
-
-    /** Hide banner for this process until Home is fixed (or app restarts). */
-    private var homeRepairDismissed = false
 
     fun onHomeIntent() {
         homePulse++
     }
 
-    fun refreshHomeBinding() {
-        val app = getApplication<Application>()
-        // Prefer preferred-activity: that's what stops the Home-button chooser.
-        val ok = !HomeDefault.needsRepair(app)
-        if (ok) {
-            homeRepairDismissed = false
-            needsHomeRepair = false
-            if (prefs.getBoolean(KEY_AWAIT_HOME_REBIND, false)) {
-                prefs.edit()
-                    .putBoolean(KEY_AWAIT_HOME_REBIND, false)
-                    .putBoolean(KEY_HOME_REBIND_TOASTED, false)
-                    .apply()
-            }
-            return
-        }
-        needsHomeRepair = !homeRepairDismissed
-        if (!prefs.getBoolean(KEY_AWAIT_HOME_REBIND, false)) return
-        // One-shot toast after APK update; banner stays until fixed or dismissed.
-        if (!prefs.getBoolean(KEY_HOME_REBIND_TOASTED, false)) {
-            prefs.edit().putBoolean(KEY_HOME_REBIND_TOASTED, true).apply()
-            shareHint =
-                "更新後はバナー「HOME再設定」→ Z GUNDAM OS → 常に／いつも使う"
-        }
-    }
-
-    fun markAwaitHomeRebind() {
-        prefs.edit()
-            .putBoolean(KEY_AWAIT_HOME_REBIND, true)
-            .putBoolean(KEY_HOME_REBIND_TOASTED, false)
-            .apply()
-        homeRepairDismissed = false
-        needsHomeRepair = true
-    }
-
-    fun dismissHomeRepairBanner() {
-        homeRepairDismissed = true
-        needsHomeRepair = false
+    fun dismissModeHint() {
+        showModeHint = false
+        prefs.edit().putBoolean(KEY_MODE_HINT_SEEN, true).apply()
     }
 
     fun consumeShareHint() {
@@ -413,12 +373,6 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         saveFolders()
     }
 
-    /** Opens the native Always/Just-once Home chooser (FakeHome repair). */
-    fun openHomeAppSettings() {
-        val app = getApplication<Application>()
-        runCatching { HomeDefault.forceSystemHomeChooser(app) }
-    }
-
     fun launchApp(pkg: String) {
         val pm = getApplication<Application>().packageManager
         val intent = pm.getLaunchIntentForPackage(pkg) ?: return
@@ -502,8 +456,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         private const val KEY_FAV = "favorites"
         private const val KEY_FOLDERS = "folders"
         private const val KEY_LABELS = "custom_labels"
-        private const val KEY_AWAIT_HOME_REBIND = "await_home_rebind"
-        private const val KEY_HOME_REBIND_TOASTED = "home_rebind_toasted"
+        private const val KEY_MODE_HINT_SEEN = "mode_hint_seen_v35"
 
         fun normalizeUrl(raw: String): String? {
             var s = raw.trim()

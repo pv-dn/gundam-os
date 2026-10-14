@@ -75,7 +75,6 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.uc0079.launcher.AppFolder
 import com.uc0079.launcher.AppInfo
 import com.uc0079.launcher.FavoriteEntry
-import com.uc0079.launcher.HomeDefault
 import com.uc0079.launcher.IndexLetter
 import com.uc0079.launcher.LauncherViewModel
 import com.uc0079.launcher.UpdateChecker
@@ -132,7 +131,6 @@ fun LauncherApp(vm: LauncherViewModel, widgets: WidgetHostController) {
                 onDownload = { apkUrl ->
                     showUpdateDialog = false
                     vm.dismissUpdate()
-                    vm.markAwaitHomeRebind()
                     UpdateChecker.download(context, apkUrl) { fileUri ->
                         UpdateChecker.installApk(context, fileUri)
                     }
@@ -233,32 +231,6 @@ private fun HomeScreen(
         if (uri != null) vm.importBookmarksFromUri(uri)
     }
 
-    val context = LocalContext.current
-    val homeRoleLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) {
-        vm.refreshHomeBinding()
-        // Role alone can leave preferred-HOME stale — force Always/Just once next.
-        if (HomeDefault.needsRepair(context)) {
-            runCatching { HomeDefault.forceSystemHomeChooser(context) }
-        } else {
-            Toast.makeText(context, "ホーム設定OK", Toast.LENGTH_SHORT).show()
-        }
-    }
-    fun launchHomeRepair() {
-        // Stale ROLE_HOME → Role dialog is a no-op; go straight to native chooser.
-        if (HomeDefault.isHomeBindingStale(context)) {
-            runCatching { HomeDefault.forceSystemHomeChooser(context) }
-            return
-        }
-        val roleIntent = HomeDefault.roleRequestIntentOrNull(context)
-        if (roleIntent != null) {
-            homeRoleLauncher.launch(roleIntent)
-            return
-        }
-        runCatching { HomeDefault.forceSystemHomeChooser(context) }
-    }
-
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -279,11 +251,8 @@ private fun HomeScreen(
             )
         }
 
-        if (vm.needsHomeRepair) {
-            HomeRepairBanner(
-                onRepair = { launchHomeRepair() },
-                onDismiss = { vm.dismissHomeRepairBanner() },
-            )
+        if (vm.showModeHint) {
+            ModeHintBanner(onDismiss = { vm.dismissModeHint() })
         }
 
         Column(
@@ -489,7 +458,6 @@ private fun HomeScreen(
         }
         HelpSheet(
             onDismiss = { helpOpen = false },
-            onOpenLauncherSettings = { launchHomeRepair() },
             onCheckUpdate = { vm.checkForUpdate(force = true) },
             versionLabel = ver,
         )
@@ -573,29 +541,25 @@ private fun UpdateBanner(
 }
 
 @Composable
-private fun HomeRepairBanner(
-    onRepair: () -> Unit,
-    onDismiss: () -> Unit,
-) {
+private fun ModeHintBanner(onDismiss: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 8.dp, bottom = 2.dp)
             .hudFrame(fill = G.PanelStrong, bracket = G.Cyan)
-            .clickable(onClick = onRepair)
             .padding(horizontal = 10.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(Modifier.weight(1f)) {
             Text(
-                text = "HOME 再設定",
+                text = "方式変更 (v35)",
                 color = G.Cyan,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 fontFamily = FontFamily.Monospace
             )
             Text(
-                text = "タップ→一覧から「Z GUNDAM OS」→必ず「常に／いつも使う」（※選ばない は触らない）",
+                text = "システムホームにはなりません。アプリアイコンから開いてね。ホームボタンは標準ホームへ戻ります",
                 color = G.Dim,
                 fontSize = 11.sp,
                 fontFamily = FontFamily.Monospace,
@@ -605,16 +569,9 @@ private fun HomeRepairBanner(
         }
         Spacer(Modifier.width(8.dp))
         Text(
-            text = "設定",
+            text = "OK",
             color = G.Cyan,
             fontSize = 11.sp,
-            fontFamily = FontFamily.Monospace,
-            modifier = Modifier.padding(4.dp)
-        )
-        Text(
-            text = "×",
-            color = G.Dim,
-            fontSize = 14.sp,
             fontFamily = FontFamily.Monospace,
             modifier = Modifier
                 .clickable(onClick = onDismiss)

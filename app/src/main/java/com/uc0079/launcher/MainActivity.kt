@@ -15,8 +15,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // If a previous crash left FakeHome enabled, Home would chooser every press.
-        HomeDefault.ensureFakeHomeDisabled(this)
         widgets = WidgetHostController(this)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         setContent {
@@ -29,10 +27,8 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         if (handleShareIntent(intent)) return
-        // Home button while already in the launcher (e.g. all-apps screen).
-        if (intent.hasCategory(Intent.CATEGORY_HOME) ||
-            intent.action == Intent.ACTION_MAIN
-        ) {
+        // Relaunch from app icon while already open → scroll home to top.
+        if (intent.action == Intent.ACTION_MAIN) {
             vm.onHomeIntent()
         }
     }
@@ -63,9 +59,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        // Reflect installs / uninstalls that happened while we were away.
         vm.refresh()
-        vm.refreshHomeBinding()
         vm.checkForUpdate()
     }
 }
